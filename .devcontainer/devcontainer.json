@@ -1,0 +1,28 @@
+{
+  "name": "Workflow Dev",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "bash"
+  },
+  "postCreateCommand": "echo 'export HUGO_TOOLS_PATH=$HOME/workspace/workflow-tools/hugo-tools' >> ~/.bashrc && echo 'export PATH=$HUGO_TOOLS_PATH/bin:$PATH' >> ~/.bashrc && echo 'Environment configured for hugo-tools'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "yzhang.markdown-all-in-one",
+        "bierner.markdown-preview-github-styles",
+        "EditorConfig.EditorConfig"
+      ]
+    }
+  },
+  "forwardPorts": [
+    1313
+  ],
+  "portsAttributes": {
+    "1313": {
+      "label": "Hugo Preview",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}
