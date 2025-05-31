@@ -1,0 +1,2 @@
+# CONTENT_DIR can vary across projects
+CONTENT_DIR="$(git rev-parse --show-toplevel)/site/content/posts"

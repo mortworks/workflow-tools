@@ -1,35 +1,14 @@
 #!/bin/bash
 
-# ------------------------------
-# 📁 Project paths and structure
-# ------------------------------
+# Resolve through any symlinks to get the true script directory
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 
-# Root directory of Hugo site
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HUGO_SITE_DIR="${HUGO_SITE_DIR:-$SCRIPT_DIR/../../site}"
-
-# Where content posts live
-CONTENT_DIR="$HUGO_SITE_DIR/content/posts"
-
-# Hugo config file (optional future use)
-HUGO_CONFIG="$HUGO_SITE_DIR/hugo.toml"
-
-# ------------------------------
-# 🔗 GitHub configuration
-# ------------------------------
-
-# GitHub repo used for pushing changes
-GITHUB_REPO="git@github.com:pwm-teach/morton-teaches.git"
-
-# ------------------------------
-# ⚙️ Script behaviour settings
-# ------------------------------
-
-# How many recent files to show in menus
-MAX_RECENT=20
-
-# Month that marks the start of a new academic year (e.g. 7 = July)
-ACADEMIC_YEAR_START_MONTH=7
-
-# Format for academic year subfolders (e.g. 2024-2025)
-ACADEMIC_YEAR_FORMAT="%Y-%Y"
+# Set blog root relative to the real script location
+BLOG_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CONTENT_DIR="$BLOG_ROOT/site/content/posts"

@@ -1,37 +1,30 @@
 #!/bin/bash
 
-# Load Hugo-related utilities
-source "$(dirname "$0")/../lib/hugo.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/hugo.sh"
 
 echo "📄 Enter a title for your new post:"
 read -r title
 
-# Generate slug from title
-slug=$(generate_slug "$title")
+slug=$(echo "$title" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g' | sed 's/[^a-z0-9-]//g')
 
-# Confirm uniqueness
-while [[ -f $(get_post_path "$slug") ]]; do
-  echo "⚠️  A post with this slug already exists: $slug"
-  echo "Enter a new slug:"
-  read -r slug
-  slug=$(generate_slug "$slug")
-done
+POST_PATH=$(get_post_path "$slug")
+create_post_file "$title" "$slug" "true"
 
-# Create post file
-filepath=$(create_post_file "$title" "$slug" "true")
+echo "🔍 BLOG_ROOT=$BLOG_ROOT"
+echo "🔍 CONTENT_DIR=$CONTENT_DIR"
+echo "🔍 POST_PATH=$POST_PATH"
 
-# Open in editor
-nano "$filepath"
 
-# Option to publish immediately
-read -rp "🚀 Publish this post now? [y/N] " confirm
-if [[ "$confirm" =~ ^[Yy]$ ]]; then
-  sed -i 's/^draft = true/draft = false/' "$filepath"
-  echo "✅ Post published"
+echo "🚀 Publish this post now? [y/N]"
+read -r publish
+
+if [[ "$publish" =~ ^[Yy]$ ]]; then
+  sed -i.bak 's/draft = true/draft = false/' "$POST_PATH" && rm "$POST_PATH.bak"
+  git add "$POST_PATH"
+  git commit -m "Add new post: $title"
+  git push
+  echo "✅ Changes pushed to GitHub"
+else
+  echo "✅ Post created (still marked as draft)"
 fi
-
-# Git add, commit, push
-git add "$filepath"
-git commit -m "Add new post: $title"
-git push origin main
-echo "✅ Changes pushed to GitHub"
