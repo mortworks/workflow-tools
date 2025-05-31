@@ -13,5 +13,5 @@ if [[ -f "$BLOG_ROOT/.blogrc" ]]; then
 fi
 
 # Fallbacks if .blogrc didn't set them
-CONTENT_DIR="${CONTENT_DIR:-$BLOG_ROOT/site/content/posts}"
+CONTENT_DIR="${CONTENT_DIR:-$BLOG_ROOT/content/posts}"
 DRAFT_DIR="${DRAFT_DIR:-$BLOG_ROOT/_drafts}"
