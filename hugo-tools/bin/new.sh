@@ -20,6 +20,12 @@ echo "🔍 BLOG_ROOT=$BLOG_ROOT"
 echo "🔍 CONTENT_DIR=$CONTENT_DIR"
 echo "🔍 POST_PATH=$POST_PATH"
 
+if [[ -z "$POST_PATH" ]]; then
+  echo "❌ Error: POST_PATH not resolved. Check get_post_path or CONTENT_DIR."
+  exit 1
+fi
+
+
 echo "🚀 Publish this post now? [y/N]"
 read -r publish
 if [[ "$publish" =~ ^[Yy]$ ]]; then

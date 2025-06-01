@@ -6,6 +6,7 @@ source "$SCRIPT_DIR/config.sh"
 get_post_path() {
   local slug="$1"
   local post_path="${CONTENT_DIR%/}/$slug.md"
+  echo "$post_path"
 }
 
 extract_title() {

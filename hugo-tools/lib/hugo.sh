@@ -1,7 +1,12 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/core.sh"
+if [[ -f "$SCRIPT_DIR/core.sh" ]]; then
+  source "$SCRIPT_DIR/core.sh"
+else
+  echo "❌ core.sh not found in $SCRIPT_DIR"
+  return 1 2>/dev/null || exit 1
+fi
 
 generate_front_matter() {
   local title="$1"
