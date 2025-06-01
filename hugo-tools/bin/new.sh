@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Ensure DOTFILES and environment vars are available
+if [[ -z "$DOTFILES" && -f "$HOME/dotfiles/exports.zsh" ]]; then
+  source "$HOME/dotfiles/exports.zsh"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/hugo.sh"
 
@@ -15,10 +20,8 @@ echo "🔍 BLOG_ROOT=$BLOG_ROOT"
 echo "🔍 CONTENT_DIR=$CONTENT_DIR"
 echo "🔍 POST_PATH=$POST_PATH"
 
-
 echo "🚀 Publish this post now? [y/N]"
 read -r publish
-
 if [[ "$publish" =~ ^[Yy]$ ]]; then
   sed -i.bak 's/draft = true/draft = false/' "$POST_PATH" && rm "$POST_PATH.bak"
   git add "$POST_PATH"
@@ -27,4 +30,7 @@ if [[ "$publish" =~ ^[Yy]$ ]]; then
   echo "✅ Changes pushed to GitHub"
 else
   echo "✅ Post created (still marked as draft)"
+  echo "💡 To publish later: run:"
+  echo "   $TOOLS_DIR/hugo-tools/bin/git-autocommit.sh \"$POST_PATH\""
 fi
+
