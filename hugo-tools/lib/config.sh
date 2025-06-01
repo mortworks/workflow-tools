@@ -4,11 +4,11 @@
 # 🌱 Configure Hugo blog environment for multiple blog repos
 # ---------------------------------------------------------
 
-# Attempt to find the Hugo root by walking up to find hugo.toml
+# Attempt to find the Hugo root by walking up to find any valid config file
 find_hugo_root() {
   local dir="$PWD"
   while [[ "$dir" != "/" ]]; do
-    if [[ -f "$dir/hugo.toml" || -f "$dir/config.toml" ]]; then
+    if [[ -f "$dir/hugo.toml" || -f "$dir/config.toml" || -f "$dir/hugo.yaml" || -f "$dir/config.yaml" ]]; then
       echo "$dir"
       return
     fi
