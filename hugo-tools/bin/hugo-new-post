@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Wrapper for hugo-tools new post script
+
+TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_PATH="$TOOLS_DIR/hugo-tools/bin/new.sh"
+
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  echo "❌ hugo-tools 'new.sh' script not found at: $SCRIPT_PATH"
+  exit 1
+fi
+
+echo "✅ Running Hugo new post tool..."
+exec "$SCRIPT_PATH" "$@"
