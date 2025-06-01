@@ -32,3 +32,16 @@ fi
 # Fallbacks if not set in .blogrc
 CONTENT_DIR="${CONTENT_DIR:-$BLOG_ROOT/content/posts}"
 DRAFT_DIR="${DRAFT_DIR:-$BLOG_ROOT/_drafts}"
+
+# ---------------------------------------------------------
+# 🛡 Guard: Ensure this is a valid Hugo site
+# ---------------------------------------------------------
+if [[ ! -f "$BLOG_ROOT/hugo.toml" && ! -f "$BLOG_ROOT/config.toml" && ! -f "$BLOG_ROOT/config.yaml" ]]; then
+  echo "❌ Not a valid Hugo site: no config.{toml,yaml} or hugo.toml found in $BLOG_ROOT"
+  return 1 2>/dev/null || exit 1
+fi
+
+if [[ ! -d "$CONTENT_DIR" ]]; then
+  echo "❌ Content directory not found: $CONTENT_DIR"
+  return 1 2>/dev/null || exit 1
+fi
