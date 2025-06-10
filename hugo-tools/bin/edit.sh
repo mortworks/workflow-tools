@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../lib/hugo.sh"
+WRAPPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$WRAPPER_DIR/../lib/hugo.sh"
 
 filter="all"
 if [[ "$1" == "--drafts" ]]; then
@@ -35,12 +35,12 @@ file="${files[$((choice - 1))]}"
 echo "📝 Opening: $file"
 "${EDITOR:-nano}" "$file"
 
-# Ask to commit after edit
+# ✅ Ask to commit after edit
 echo ""
 echo "🚀 Commit and push this change? [y/N]"
 read -r confirm
 if [[ "$confirm" =~ ^[Yy]$ ]]; then
-  GIT_HELPER="$SCRIPT_DIR/git-autocommit.sh"
+  GIT_HELPER="$WRAPPER_DIR/git-autocommit.sh"
   if [[ -x "$GIT_HELPER" ]]; then
     "$GIT_HELPER" "$file"
   else
