@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ---------------------------------------------------------
 # 🌱 Configure Hugo blog environment for multiple blog repos
