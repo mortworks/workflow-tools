@@ -1,29 +1,52 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/hugo.sh"
 
+filter="all"
+if [[ "$1" == "--drafts" ]]; then
+  filter="unpublished"
+elif [[ "$1" == "--published" ]]; then
+  filter="published"
+fi
+
 echo "📝 Edit mode — select a post to open"
+echo "📚 Fetching recent posts ($filter)..."
+files=()
+while IFS= read -r line; do
+  files+=("$line")
+done < <(list_recent_files "$filter")
 
-# Get the list of recent posts
-mapfile -t posts < <(list_recent_files)
-
-if [[ ${#posts[@]} -eq 0 ]]; then
-  echo "⚠️  No posts found to edit."
+if [[ "${#files[@]}" -eq 0 ]]; then
+  echo "❌ No posts found for filter: $filter"
   exit 1
 fi
 
-display_menu_items "${posts[@]}"
+display_menu_items "${files[@]}"
+echo -n "Choose a post to edit [1-${#files[@]}]: "
+read -r choice
 
-read -rp "Choose a number: " selection
-
-if ! [[ "$selection" =~ ^[0-9]+$ ]] || (( selection < 1 || selection > ${#posts[@]} )); then
-  echo "❌ Invalid selection"
+if [[ "$choice" -lt 1 || "$choice" -gt "${#files[@]}" ]]; then
+  echo "❌ Invalid selection."
   exit 1
 fi
 
-file="${posts[$((selection-1))]}"
-echo "📂 Opening: $file"
-sleep 0.3
-
+file="${files[$((choice - 1))]}"
+echo "📝 Opening: $file"
 "${EDITOR:-nano}" "$file"
+
+# Ask to commit after edit
+echo ""
+echo "🚀 Commit and push this change? [y/N]"
+read -r confirm
+if [[ "$confirm" =~ ^[Yy]$ ]]; then
+  GIT_HELPER="$SCRIPT_DIR/git-autocommit.sh"
+  if [[ -x "$GIT_HELPER" ]]; then
+    "$GIT_HELPER" "$file"
+  else
+    echo "⚠️  git-autocommit.sh not found at $GIT_HELPER"
+  fi
+else
+  echo "💡 You can commit manually later using:"
+  echo "   git add \"$file\" && git commit && git push"
+fi
