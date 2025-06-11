@@ -24,24 +24,21 @@ list_recent_files() {
   local filter="$1"
   local max="${2:-10}"
 
-find "$CONTENT_DIR" -name '*.md' -print0 |
-  while IFS= read -r -d '' file; do
-    local draft
-    draft=$(extract_draft "$file")
-    if [[ "$filter" == "published" && "$draft" == "true" ]]; then continue; fi
-    if [[ "$filter" == "unpublished" && "$draft" != "true" ]]; then continue; fi
-    echo "$file"
-  done |
-  while read -r f; do
-    # Ensure the file actually exists and has a valid mod time
-    if [[ -f "$f" ]]; then
-      echo "$(stat -f '%m %N' "$f")"
-    fi
-  done |
-  sort -nr |
-  cut -d' ' -f2- |
-  grep -v '^$' |  # Remove empty lines
-  head -n "$max"
+  find "$CONTENT_DIR" -name '*.md' -print0 |
+    while IFS= read -r -d '' file; do
+      local draft=$(extract_draft "$file")
+      local date=$(extract_date "$file")
+      if [[ "$filter" == "published" && "$draft" == "true" ]]; then continue; fi
+      if [[ "$filter" == "unpublished" && "$draft" != "true" ]]; then continue; fi
+
+      # Only include files with valid date
+      if [[ -n "$date" ]]; then
+        echo "$date|$file"
+      fi
+    done |
+    sort -r |
+    cut -d'|' -f2 |
+    head -n "$max"
 }
 
 display_menu_items() {
@@ -49,14 +46,9 @@ display_menu_items() {
   local index=1
   for file in "${files[@]}"; do
     local title=$(extract_title "$file")
-    local date=$(extract_date "$file")
-
-    # Skip files with missing title or date
-    if [[ -z "$title" || -z "$date" ]]; then
-      continue
-    fi
-
-    echo "$index) [$date] $title"
+    local date=$(extract_date "$file" | cut -d'T' -f1)
+    local name=$(basename "$file")
+    printf "%2d) %-10s  %s\n" "$index" "$date" "${title:-$name}"
     ((index++))
   done
 }
