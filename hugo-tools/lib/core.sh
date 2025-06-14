@@ -3,6 +3,14 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 
+get_mtime() {
+  if stat --version >/dev/null 2>&1; then
+    stat -c '%Y' "$1"  # GNU (Linux)
+  else
+    stat -f '%m' "$1"  # BSD/macOS
+  fi
+}
+
 get_post_path() {
   local slug="$1"
   echo "${CONTENT_DIR%/}/$slug.md"

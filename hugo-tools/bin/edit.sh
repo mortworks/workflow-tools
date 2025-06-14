@@ -3,16 +3,12 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/hugo.sh"
 
-# ----------------------------------------
 # 🔍 Extract tags from frontmatter
-# ----------------------------------------
 extract_tags() {
   grep '^tags' "$1" | sed 's/tags *= *\[\(.*\)\]/\1/' | tr -d '"'
 }
 
-# ----------------------------------------
-# 📊 Calculate match score for search term
-# ----------------------------------------
+# 📊 Match score for search
 match_score() {
   local text="$1"
   shift
@@ -26,9 +22,7 @@ match_score() {
   echo "$score"
 }
 
-# ----------------------------------------
-# 📋 Display post list menu
-# ----------------------------------------
+# 📋 Display menu
 display_menu_items() {
   local -a files=("$@")
   local index=1
@@ -43,9 +37,7 @@ display_menu_items() {
   done
 }
 
-# ----------------------------------------
-# 🚀 Edit selected file and optionally commit
-# ----------------------------------------
+# 🚀 Editor + optional commit
 open_editor_and_commit() {
   local file="$1"
   echo "📝 Opening: $file"
@@ -67,10 +59,7 @@ open_editor_and_commit() {
   fi
 }
 
-# ----------------------------------------
-# 📝 Main logic
-# ----------------------------------------
-
+# 🧠 MAIN
 echo "📝 Edit mode — recent posts + search options"
 echo "📚 Loading recent posts (all)..."
 recent_files=()
@@ -89,17 +78,19 @@ echo "  q → ❌ quit"
 echo -n "> "
 read -r input
 
+# 🧭 Handle input
 if [[ "$input" == "q" ]]; then
   echo "👋 Exiting."
   exit 0
+
 elif [[ "$input" == "a" ]]; then
-  echo ""
-  echo "📜 All posts:"
+  echo "📜 Listing all posts..."
   all_files=()
   while IFS= read -r line; do
     all_files+=("$line")
-  done < <(list_recent_files "all" 500)
+  done < <(list_recent_files "all" 100)
 
+  echo ""
   display_menu_items "${all_files[@]}"
   echo -n "Choose post number [1-${#all_files[@]}]: "
   read -r num
@@ -110,34 +101,27 @@ elif [[ "$input" == "a" ]]; then
     echo "❌ Invalid selection."
     exit 1
   fi
-  exit 0
+
 elif [[ "$input" == "s" ]]; then
   echo -n "🔍 Search for post by title or tag: "
   read -r query
   IFS=' ' read -r -a terms <<< "$query"
 
-matches=()
-scored_lines=()
+  matches=()
+  scored_lines=()
 
-for file in $(find "$CONTENT_DIR" -name '*.md'); do
-  title=$(extract_title "$file")
-  tags=$(extract_tags "$file")
-  combined="$title $tags"
-  score=0
+  for file in $(find "$CONTENT_DIR" -name '*.md'); do
+    title=$(extract_title "$file")
+    tags=$(extract_tags "$file")
+    combined="$title $tags"
+    score=$(match_score "$combined" "${terms[@]}")
 
-  for term in "${terms[@]}"; do
-    if echo "$combined" | grep -qi "$term"; then
-      ((score++))
+    if [[ "$score" -gt 0 ]]; then
+      scored_lines+=("$score $(get_mtime "$file") $file")
     fi
   done
 
-  if [[ "$score" -gt 0 ]]; then
-    scored_lines+=("$score $(stat -f '%m' "$file") $file")
-  fi
-done
-
-# Sort results by score then mtime
-sorted_matches=($(printf "%s\n" "${scored_lines[@]}" | sort -k1,1nr -k2,2nr | cut -d' ' -f3-))
+  sorted_matches=($(printf "%s\n" "${scored_lines[@]}" | sort -k1,1nr -k2,2nr | cut -d' ' -f3-))
 
   echo ""
   echo "🎯 Matching posts:"
@@ -151,10 +135,11 @@ sorted_matches=($(printf "%s\n" "${scored_lines[@]}" | sort -k1,1nr -k2,2nr | cu
     echo "❌ Invalid selection."
     exit 1
   fi
-  exit 0
+
 elif [[ "$input" =~ ^[0-9]+$ && "$input" -ge 1 && "$input" -le ${#recent_files[@]} ]]; then
   file="${recent_files[$((input - 1))]}"
   open_editor_and_commit "$file"
+
 else
   echo "❌ Invalid input."
   exit 1
