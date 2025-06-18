@@ -1,60 +1,59 @@
 #!/usr/bin/env bash
 
 # ---------------------------------------------------------
-# 🌱 Configure Hugo blog environment for multiple blog repos
+# 🌱 Configure Hugo blog environment
 # ---------------------------------------------------------
 
-# Acceptable Hugo config filenames
-HUGO_CONFIG_FILES=("hugo.toml" "config.toml" "config.yaml" "hugo.yaml")
+# Resolve the script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check if any Hugo config file exists in a given directory
-has_hugo_config() {
-  local dir="$1"
-  for file in "${HUGO_CONFIG_FILES[@]}"; do
-    [[ -f "$dir/$file" ]] && return 0
+# Load utils if not already available
+if ! declare -F fatal >/dev/null 2>&1; then
+  if [[ -f "$SCRIPT_DIR/utils.sh" ]]; then
+    source "$SCRIPT_DIR/utils.sh"
+  else
+    echo "❌ [ERROR] Could not find utils.sh in $SCRIPT_DIR"
+    return 1 2>/dev/null || exit 1
+  fi
+fi
+
+# Locate Hugo root by walking up the directory tree
+find_hugo_root() {
+  local dir="$PWD"
+  while [[ "$dir" != "/" ]]; do
+    if [[ -f "$dir/hugo.toml" || -f "$dir/config.toml" || -f "$dir/config.yaml" || -f "$dir/hugo.yaml" ]]; then
+      echo "$dir"
+      return 0
+    fi
+    dir=$(dirname "$dir")
   done
   return 1
 }
 
-# Attempt to find the Hugo root by walking up to find a valid config file
-find_hugo_root() {
-  local dir="$PWD"
-  while [[ "$dir" != "/" ]]; do
-    if has_hugo_config "$dir"; then
-      echo "$dir"
-      return
-    fi
-    dir=$(dirname "$dir")
-  done
-}
-
-# Resolve root directory for current blog
-BLOG_ROOT="$(find_hugo_root)"
-
+# Attempt to locate BLOG_ROOT
+BLOG_ROOT="$(find_hugo_root 2>/dev/null)"
 if [[ -z "$BLOG_ROOT" ]]; then
-  echo "❌ Could not locate a Hugo site (no supported config file found)."
-  return 1 2>/dev/null || exit 1
+  fatal "Could not locate a Hugo site (no config file found)."
 fi
 
-# Optional: allow override with .blogrc
+# Confirm valid config file still exists
+if [[ ! -f "$BLOG_ROOT/hugo.toml" && ! -f "$BLOG_ROOT/config.toml" && ! -f "$BLOG_ROOT/config.yaml" && ! -f "$BLOG_ROOT/hugo.yaml" ]]; then
+  fatal "Not a valid Hugo site: no config file found at $BLOG_ROOT"
+fi
+
+# Load optional overrides
 if [[ -f "$BLOG_ROOT/.blogrc" ]]; then
   source "$BLOG_ROOT/.blogrc"
 fi
 
-# Fallbacks if not set in .blogrc
+# Define default content paths
 CONTENT_DIR="${CONTENT_DIR:-$BLOG_ROOT/content/posts}"
 DRAFT_DIR="${DRAFT_DIR:-$BLOG_ROOT/_drafts}"
 
-# ---------------------------------------------------------
-# 🛡 Guard: Ensure valid Hugo site and content directory
-# ---------------------------------------------------------
-
-if ! has_hugo_config "$BLOG_ROOT"; then
-  echo "❌ Not a valid Hugo site: no config.{toml,yaml} or hugo.toml found in $BLOG_ROOT"
-  return 1 2>/dev/null || exit 1
-fi
-
+# Check for content directory
 if [[ ! -d "$CONTENT_DIR" ]]; then
-  echo "❌ Content directory not found: $CONTENT_DIR"
-  return 1 2>/dev/null || exit 1
+  fatal "Content directory does not exist: $CONTENT_DIR"
 fi
+
+# ✅ Signal successful environment load
+HUGO_ENV_OK=true

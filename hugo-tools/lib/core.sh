@@ -60,4 +60,3 @@ display_menu_items() {
     ((index++))
   done
 }
-

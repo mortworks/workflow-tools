@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../lib/hugo.sh"
+LIB_DIR="$SCRIPT_DIR/../lib"
+
+# Load error helpers
+if [[ -f "$LIB_DIR/utils.sh" ]]; then
+  source "$LIB_DIR/utils.sh"
+else
+  echo "❌ [ERROR] Could not load error helpers from $LIB_DIR/utils.sh"
+  exit 1
+fi
+
+# Load Hugo environment
+if ! source "$LIB_DIR/hugo.sh" || [[ -z "$HUGO_ENV_OK" ]]; then
+  fatal "Aborting: could not load Hugo environment."
+fi
 
 # 🔍 Extract tags from frontmatter
 extract_tags() {
@@ -98,8 +111,7 @@ elif [[ "$input" == "a" ]]; then
     file="${all_files[$((num - 1))]}"
     open_editor_and_commit "$file"
   else
-    echo "❌ Invalid selection."
-    exit 1
+    fatal "Invalid selection."
   fi
 
 elif [[ "$input" == "s" ]]; then
@@ -132,8 +144,7 @@ elif [[ "$input" == "s" ]]; then
     file="${sorted_matches[$((num - 1))]}"
     open_editor_and_commit "$file"
   else
-    echo "❌ Invalid selection."
-    exit 1
+    fatal "Invalid selection."
   fi
 
 elif [[ "$input" =~ ^[0-9]+$ && "$input" -ge 1 && "$input" -le ${#recent_files[@]} ]]; then
@@ -141,6 +152,5 @@ elif [[ "$input" =~ ^[0-9]+$ && "$input" -ge 1 && "$input" -le ${#recent_files[@
   open_editor_and_commit "$file"
 
 else
-  echo "❌ Invalid input."
-  exit 1
+  fatal "Invalid input."
 fi
