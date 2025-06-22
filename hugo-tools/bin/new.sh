@@ -4,7 +4,7 @@
 # 🚀 Hugo new post script
 # ---------------------------------------------------------
 
-# Resolve the real path, even if this script is symlinked
+# Resolve real path (support symlinks)
 SOURCE="${BASH_SOURCE[0]}"
 while [[ -h "$SOURCE" ]]; do
   DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
@@ -15,27 +15,44 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
 
-# Load error helpers
+# Load utilities
 if [[ -f "$LIB_DIR/utils.sh" ]]; then
   source "$LIB_DIR/utils.sh"
 else
-  echo "❌ [ERROR] Could not load error helpers from $LIB_DIR/utils.sh"
+  echo "❌ [ERROR] Could not load utilities from $LIB_DIR/utils.sh"
   exit 1
 fi
 
 # Load Hugo environment
-if ! source "$LIB_DIR/hugo.sh"; then
+if ! source "$LIB_DIR/hugo.sh" || [[ -z "$HUGO_ENV_OK" ]]; then
   fatal "Aborting: could not load Hugo environment."
 fi
 
 # ---------------------------------------------------------
-# 📝 Create the post
+# 📝 Collect title and generate slug
 # ---------------------------------------------------------
 
 echo "📄 Enter a title for your new post:"
 read -r title
 
-slug=$(echo "$title" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g' | sed 's/[^a-z0-9-]//g')
+default_slug="$(generate_slug "$title")"
+
+if [[ "${#default_slug}" -gt 40 ]]; then
+  echo "⚠️  Auto-generated slug is quite long:"
+  echo "   $default_slug"
+fi
+
+echo -n "✏️  Enter a custom slug or press Enter to use: $default_slug
+> "
+read -r user_slug
+
+slug="${user_slug:-$default_slug}"
+slug="$(generate_slug "$slug")"
+slug="${slug:0:40}"
+
+# ---------------------------------------------------------
+# 📝 Create post
+# ---------------------------------------------------------
 
 POST_PATH=$(get_post_path "$slug")
 create_post_file "$title" "$slug" "true"
@@ -43,6 +60,10 @@ create_post_file "$title" "$slug" "true"
 echo "🔍 BLOG_ROOT=$BLOG_ROOT"
 echo "🔍 CONTENT_DIR=$CONTENT_DIR"
 echo "🔍 POST_PATH=$POST_PATH"
+
+# ---------------------------------------------------------
+# 🚀 Offer publication
+# ---------------------------------------------------------
 
 echo "🚀 Publish this post now? [y/N]"
 read -r publish
@@ -58,7 +79,7 @@ fi
 # 💬 Offer to auto-commit
 # ---------------------------------------------------------
 
-GIT_HELPER="$TOOLS_DIR/hugo-tools/bin/git-autocommit.sh"
+GIT_HELPER="$LIB_DIR/git-autocommit.sh"
 if [[ -x "$GIT_HELPER" ]]; then
   "$GIT_HELPER" "$POST_PATH"
 else
