@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ---------------------------------------------------------
-# 🚀 Hugo new post script (YAML-compatible)
+# 🚀 Hugo new post script
 # ---------------------------------------------------------
 
 # Resolve real path (support symlinks)
@@ -29,7 +29,7 @@ if ! source "$LIB_DIR/hugo.sh" || [[ -z "$HUGO_ENV_OK" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 📜 Collect title and generate slug
+# 📝 Collect title and generate slug
 # ---------------------------------------------------------
 
 echo "📄 Enter a title for your new post:"
@@ -51,7 +51,7 @@ slug="$(generate_slug "$slug")"
 slug="${slug:0:40}"
 
 # ---------------------------------------------------------
-# 📜 Create post
+# 📝 Create post
 # ---------------------------------------------------------
 
 POST_PATH=$(get_post_path "$slug")
@@ -69,7 +69,7 @@ echo "🚀 Publish this post now? [y/N]"
 read -r publish
 
 if [[ "$publish" =~ ^[Yy]$ ]]; then
-  sed -i.bak 's/^draft: true$/draft: false/' "$POST_PATH" && rm "$POST_PATH.bak"
+  sed -i.bak 's/draft = true/draft = false/' "$POST_PATH" && rm "$POST_PATH.bak"
   echo "✅ Post marked as published"
 else
   echo "✅ Post created (still marked as draft)"

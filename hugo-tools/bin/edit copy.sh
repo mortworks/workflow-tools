@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ---------------------------------------------------------
-# 📜 Hugo edit post script (YAML-compatible)
+# 📝 Hugo edit post script
 # ---------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,20 +24,8 @@ fi
 # 🔍 Helpers
 # ---------------------------------------------------------
 
-extract_title() {
-  grep '^title:' "$1" | sed 's/title:[ ]*["'"'\'\"]\{0,1\}\(.*\)["'"'\'\"]\{0,1\}/\1/'
-}
-
-extract_date() {
-  grep '^date:' "$1" | sed 's/date:[ ]*["'"'\'\"]\{0,1\}\(.*\)["'"'\'\"]\{0,1\}/\1/'
-}
-
-extract_draft() {
-  grep '^draft:' "$1" | sed 's/draft:[ ]*\([a-z]*\)/\1/'
-}
-
 extract_tags() {
-  grep '^tags:' "$1" | sed 's/tags:[ ]*\[\(.*\)\]/\1/' | tr -d '"'
+  grep '^tags' "$1" | sed 's/tags *= *\[\(.*\)\]/\1/' | tr -d '"'
 }
 
 match_score() {
@@ -101,7 +89,7 @@ open_editor_and_commit() {
 # 🚀 Main logic
 # ---------------------------------------------------------
 
-echo "📜 Edit mode — recent posts + search options"
+echo "📝 Edit mode — recent posts + search options"
 echo "📚 Loading recent posts (all)..."
 recent_files=()
 while IFS= read -r line; do

@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # hugo-tools/lib/utils.sh
 
 fatal() {
@@ -40,13 +42,12 @@ update_post_slug() {
   local new_file
   new_file="$(dirname "$file")/$new_slug.md"
 
-  # Rename the file and update the front matter
+  # Rename the file and update the front matter (YAML)
   mv "$file" "$new_file"
-  sed -i.bak "s/^slug *= *[\"'].*[\"']/slug = \"$new_slug\"/" "$new_file" && rm "$new_file.bak"
+  sed -i.bak "s/^slug: .*/slug: \"$new_slug\"/" "$new_file" && rm "$new_file.bak"
 
   echo "✅ Slug updated to: $new_slug"
   echo "📄 File renamed to: $(basename "$new_file")"
 
   UPDATED_POST_PATH="$new_file"
 }
-
