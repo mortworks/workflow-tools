@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # ---------------------------------------------------------
 # 📜 Hugo edit post script (YAML-compatible)
 # ---------------------------------------------------------
@@ -20,25 +18,16 @@ if ! source "$LIB_DIR/hugo.sh" || [[ -z "$HUGO_ENV_OK" ]]; then
   fatal "Aborting: could not load Hugo environment."
 fi
 
+# Load shared metadata functions
+if [[ -f "$LIB_DIR/metadata.sh" ]]; then
+  source "$LIB_DIR/metadata.sh"
+else
+  fatal "Aborting: metadata.sh not found in $LIB_DIR"
+fi
+
 # ---------------------------------------------------------
 # 🔍 Helpers
 # ---------------------------------------------------------
-
-extract_title() {
-  grep '^title:' "$1" | sed 's/title:[ ]*["'"'\'\"]\{0,1\}\(.*\)["'"'\'\"]\{0,1\}/\1/'
-}
-
-extract_date() {
-  grep '^date:' "$1" | sed 's/date:[ ]*["'"'\'\"]\{0,1\}\(.*\)["'"'\'\"]\{0,1\}/\1/'
-}
-
-extract_draft() {
-  grep '^draft:' "$1" | sed 's/draft:[ ]*\([a-z]*\)/\1/'
-}
-
-extract_tags() {
-  grep '^tags:' "$1" | sed 's/tags:[ ]*\[\(.*\)\]/\1/' | tr -d '"'
-}
 
 match_score() {
   local text="$1"
