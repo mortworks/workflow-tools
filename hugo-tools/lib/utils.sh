@@ -14,6 +14,11 @@ generate_slug() {
     cut -c1-40
 }
 
+get_post_path() {
+  local slug="$1"
+  echo "${CONTENT_DIR%/}/$slug.md"
+}
+
 update_post_slug() {
   local file="$1"
   local old_slug

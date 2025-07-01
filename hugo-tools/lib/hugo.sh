@@ -1,42 +1,67 @@
 #!/usr/bin/env bash
 
-# Resolve the current script directory
+# ---------------------------------------------------------
+# 🏠 hugo.sh — Environment bootstrap for Hugo scripting
+# ---------------------------------------------------------
+
+# Resolve the script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source core logic and config
+# Load utils if not already available
+if ! declare -F fatal >/dev/null 2>&1; then
+  if [[ -f "$SCRIPT_DIR/utils.sh" ]]; then
+    source "$SCRIPT_DIR/utils.sh"
+  else
+    echo "❌ [ERROR] Could not find utils.sh in $SCRIPT_DIR"
+    return 1 2>/dev/null || exit 1
+  fi
+fi
+
+# Load Hugo core logic
 if [[ -f "$SCRIPT_DIR/core.sh" ]]; then
   source "$SCRIPT_DIR/core.sh"
 else
   fatal "❌ core.sh not found in $SCRIPT_DIR"
-  return 1 2>/dev/null || exit 1
 fi
 
-# Generate front matter for new post
-generate_front_matter() {
-  local title="$1"
-  local date="$2"
-  local slug="$3"
-  local draft="$4"
-
-  cat <<EOF
-+++
-title = "$title"
-date = "$date"
-draft = $draft
-slug = "$slug"
-+++
-EOF
+# Locate Hugo root by walking up the directory tree
+find_hugo_root() {
+  local dir="$PWD"
+  while [[ "$dir" != "/" ]]; do
+    if [[ -f "$dir/hugo.toml" || -f "$dir/config.toml" || -f "$dir/config.yaml" || -f "$dir/hugo.yaml" ]]; then
+      echo "$dir"
+      return 0
+    fi
+    dir=$(dirname "$dir")
+  done
+  return 1
 }
 
-# Create the file and return its path
-create_post_file() {
-  local title="$1"
-  local slug="$2"
-  local draft="$3"
-  local post_path="$CONTENT_DIR/$slug.md"
+# Attempt to locate BLOG_ROOT
+BLOG_ROOT="$(find_hugo_root 2>/dev/null)"
+if [[ -z "$BLOG_ROOT" ]]; then
+  fatal "Could not locate a Hugo site (no config file found)."
+fi
 
-  mkdir -p "$(dirname "$post_path")"
-  local date="$(date +'%Y-%m-%dT%H:%M:%S')"
-  generate_front_matter "$title" "$date" "$slug" "$draft" > "$post_path"
-  echo "$post_path"
-}
+# Confirm valid config file still exists
+if [[ ! -f "$BLOG_ROOT/hugo.toml" && ! -f "$BLOG_ROOT/config.toml" && ! -f "$BLOG_ROOT/config.yaml" && ! -f "$BLOG_ROOT/hugo.yaml" ]]; then
+  fatal "Not a valid Hugo site: no config file found at $BLOG_ROOT"
+fi
+
+# Load optional overrides
+if [[ -f "$BLOG_ROOT/.blogrc" ]]; then
+  source "$BLOG_ROOT/.blogrc"
+fi
+
+# Define default content paths
+CONTENT_DIR="${CONTENT_DIR:-$BLOG_ROOT/content/posts}"
+DRAFT_DIR="${DRAFT_DIR:-$BLOG_ROOT/_drafts}"
+
+# Check for content directory
+if [[ ! -d "$CONTENT_DIR" ]]; then
+  fatal "Content directory does not exist: $CONTENT_DIR"
+fi
+
+# ✅ Signal successful environment load
+HUGO_ENV_OK=true
+

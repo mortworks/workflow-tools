@@ -21,6 +21,7 @@ title: "$title"
 date: "$date"
 draft: $draft
 slug: "$slug"
+type: posts
 ---
 EOF
 }
@@ -33,7 +34,8 @@ create_post_file() {
   local post_path="$CONTENT_DIR/$slug.md"
 
   mkdir -p "$(dirname "$post_path")"
-  local date="$(date +'%Y-%m-%dT%H:%M:%S%:z')"
+  local date="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
   generate_front_matter "$title" "$date" "$slug" "$draft" > "$post_path"
   echo "$post_path"
 }
+
