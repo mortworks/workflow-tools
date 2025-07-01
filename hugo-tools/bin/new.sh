@@ -11,12 +11,12 @@ TEMPLATE_FILE="$BLOG_ROOT/layouts/templates.yaml"
 CONTENT_DIR="$BLOG_ROOT/content/posts"
 
 # ----------------------------------------
-# 🧠 Prompt for title + slug
+# 🧠 Prompt for title + slug + filename
 # ----------------------------------------
 echo "📄 Enter a title for your new post:"
 read -r TITLE
 
-# Sanitize slug (lowercase, hyphenated, ascii only)
+# Slug: lowercase, ASCII, hyphenated
 SLUG_DEFAULT=$(echo "$TITLE" | \
   iconv -t ascii//TRANSLIT | \
   tr '[:upper:]' '[:lower:]' | \
@@ -26,7 +26,16 @@ SLUG_DEFAULT=$(echo "$TITLE" | \
 echo "✏️  Enter a custom slug or press Enter to use: $SLUG_DEFAULT"
 read -r SLUG
 SLUG="${SLUG:-$SLUG_DEFAULT}"
-POST_PATH="$CONTENT_DIR/$SLUG.md"
+
+# Filename logic (based on slug but shorter + no stopwords)
+STOPWORDS=(a the some)
+FILENAME=$(echo "$SLUG" | tr '-' '\n' | grep -vwF "${STOPWORDS[@]}" | head -n 5 | paste -sd- -)
+FILENAME=${FILENAME:0:20}  # truncate to 20 chars max
+
+echo "🔢  Enter a custom filename or press Enter to use: $FILENAME.md"
+read -r FILENAME_INPUT
+FILENAME="${FILENAME_INPUT:-$FILENAME}"
+POST_PATH="$CONTENT_DIR/$FILENAME.md"
 
 # ----------------------------------------
 # 📚 Read available templates from templates.yaml
