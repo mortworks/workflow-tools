@@ -1,89 +1,82 @@
 #!/usr/bin/env bash
 
-# ---------------------------------------------------------
-# 🚀 Hugo new post script (YAML-compatible)
-# ---------------------------------------------------------
+# new.sh — Create new Hugo post using YAML templates
 
-# Resolve real path (support symlinks)
-SOURCE="${BASH_SOURCE[0]}"
-while [[ -h "$SOURCE" ]]; do
-  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
-done
+# ----------------------------------------
+# 📍 Environment setup
+# ----------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BLOG_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+TEMPLATE_FILE="$BLOG_ROOT/layouts/templates.yaml"
+CONTENT_DIR="$BLOG_ROOT/content/posts"
 
-SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
-LIB_DIR="$SCRIPT_DIR/../lib"
+# ----------------------------------------
+# 🧠 Prompt for title + slug
+# ----------------------------------------
+echo "📄 Enter a title for your new post:"
+read -r TITLE
 
-# Load utilities
-if [[ -f "$LIB_DIR/utils.sh" ]]; then
-  source "$LIB_DIR/utils.sh"
-else
-  echo "❌ [ERROR] Could not load utilities from $LIB_DIR/utils.sh"
+# Sanitize slug (lowercase, hyphenated, ascii only)
+SLUG_DEFAULT=$(echo "$TITLE" | \
+  iconv -t ascii//TRANSLIT | \
+  tr '[:upper:]' '[:lower:]' | \
+  sed -E 's/[^a-z0-9]+/-/g' | \
+  sed -E 's/^-+|-+$//g')
+
+echo "✏️  Enter a custom slug or press Enter to use: $SLUG_DEFAULT"
+read -r SLUG
+SLUG="${SLUG:-$SLUG_DEFAULT}"
+POST_PATH="$CONTENT_DIR/$SLUG.md"
+
+# ----------------------------------------
+# 📚 Read available templates from templates.yaml
+# ----------------------------------------
+if [[ ! -f "$TEMPLATE_FILE" ]]; then
+  echo "❌ Error: templates.yaml not found at $TEMPLATE_FILE"
   exit 1
 fi
 
-# Load Hugo environment
-if ! source "$LIB_DIR/hugo.sh" || [[ -z "$HUGO_ENV_OK" ]]; then
-  fatal "Aborting: could not load Hugo environment."
-fi
+TEMPLATES=( $(yq eval 'keys | .[]' "$TEMPLATE_FILE") )
+echo "🧩 Choose a post type:"
+for i in "${!TEMPLATES[@]}"; do
+  printf "  %2d) %s\n" "$((i+1))" "${TEMPLATES[$i]}"
+done
+echo "Enter a number [1]:"
+read -r CHOICE
+INDEX=$(( (CHOICE > 0 ? CHOICE : 1) - 1 ))
+POST_TYPE="${TEMPLATES[$INDEX]}"
 
-# ---------------------------------------------------------
-# 📜 Collect title and generate slug
-# ---------------------------------------------------------
+# ----------------------------------------
+# 🛠 Build front matter + placeholder anchors
+# ----------------------------------------
+DATE=$(date +"%Y-%m-%dT%H:%M:%S")
 
-echo "📄 Enter a title for your new post:"
-read -r title
+# Merge YAML template and inject values directly using mikefarah/yq syntax
+FRONT_MATTER=$(yq eval \
+  ".[\"$POST_TYPE\"] | .title=\"$TITLE\" | .date=\"$DATE\" | .draft=true | .slug=\"$SLUG\"" \
+  "$TEMPLATE_FILE")
 
-default_slug="$(generate_slug "$title")"
+STRUCTURE_REFS=( $(yq eval ".${POST_TYPE}.structure[].ref" "$TEMPLATE_FILE") )
 
-if [[ "${#default_slug}" -gt 40 ]]; then
-  echo "⚠️  Auto-generated slug is quite long:"
-  echo "   $default_slug"
-fi
+{
+  echo "---"
+  echo "$FRONT_MATTER"
+  echo "---"
+  echo ""
+  for ref in "${STRUCTURE_REFS[@]}"; do
+    echo "<!-- $ref -->"
+    echo ""
+  done
+} > "$POST_PATH"
 
-echo -n "✏️  Enter a custom slug or press Enter to use: $default_slug
-> "
-read -r user_slug
+# ----------------------------------------
+# ✅ Success
+# ----------------------------------------
+echo "✅ Post created: $POST_PATH"
 
-slug="${user_slug:-$default_slug}"
-slug="$(generate_slug "$slug")"
-slug="${slug:0:40}"
-
-# ---------------------------------------------------------
-# 📜 Create post
-# ---------------------------------------------------------
-
-POST_PATH=$(get_post_path "$slug")
-create_post_file "$title" "$slug" "true"
-
-echo "🔍 BLOG_ROOT=$BLOG_ROOT"
-echo "🔍 CONTENT_DIR=$CONTENT_DIR"
-echo "🔍 POST_PATH=$POST_PATH"
-
-# ---------------------------------------------------------
-# 🚀 Offer publication
-# ---------------------------------------------------------
-
-echo "🚀 Publish this post now? [y/N]"
-read -r publish
-
-if [[ "$publish" =~ ^[Yy]$ ]]; then
-  sed -i.bak 's/^draft: true$/draft: false/' "$POST_PATH" && rm "$POST_PATH.bak"
-  echo "✅ Post marked as published"
-else
-  echo "✅ Post created (still marked as draft)"
-fi
-
-# ---------------------------------------------------------
-# 💬 Offer to auto-commit
-# ---------------------------------------------------------
-
-GIT_HELPER="$LIB_DIR/git-autocommit.sh"
-if [[ -x "$GIT_HELPER" ]]; then
-  "$GIT_HELPER" "$POST_PATH"
-else
-  echo "⚠️  git-autocommit.sh not found or not executable at: $GIT_HELPER"
-  echo "💡 You can run this script manually later to commit:"
-  echo "   $GIT_HELPER \"$POST_PATH\""
+# Optionally open in editor
+echo "📝 Open in editor now? [y/N]"
+read -r OPEN
+if [[ "$OPEN" =~ ^[Yy]$ ]]; then
+  "${EDITOR:-nano}" "$POST_PATH"
 fi
