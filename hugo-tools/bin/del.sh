@@ -36,7 +36,13 @@ GIT_HELPER="$LIB_DIR/git-autocommit.sh"
 # ---------------------------------------------------------
 
 list_all_posts() {
-  find "$CONTENT_DIR" -name "*.md" -print0 | xargs -0 stat --format='%Y %n' | sort -rn | cut -d' ' -f2-
+  find "$CONTENT_DIR" -name "*.md" ! -name "_index.md" -print0 | while IFS= read -r -d '' file; do
+    if [[ "$(uname)" == "Darwin" ]]; then
+      echo "$(stat -f '%m' "$file") $file"
+    else
+      echo "$(stat --format='%Y' "$file") $file"
+    fi
+  done | sort -rn | cut -d' ' -f2-
 }
 
 display_post_menu() {
@@ -55,7 +61,6 @@ parse_selection() {
   local total="$2"
   local selected=()
 
-  # Replace commas with spaces for flexibility
   input=$(echo "$input" | tr ',' ' ')
 
   for part in $input; do
@@ -78,7 +83,11 @@ parse_selection() {
 echo "🗂️  Available posts for deletion (most recent first):"
 echo ""
 
-mapfile -t POSTS < <(list_all_posts)
+POSTS=()
+while IFS= read -r line; do
+  POSTS+=("$line")
+done < <(list_all_posts)
+
 TOTAL=${#POSTS[@]}
 
 if [[ $TOTAL -eq 0 ]]; then
@@ -91,7 +100,10 @@ echo ""
 echo "📝 Enter post numbers to delete (e.g. 1 3 5 or 2-4, or combinations):"
 read -r input
 
-mapfile -t SELECTION < <(parse_selection "$input" "$TOTAL")
+SELECTION=()
+while IFS= read -r line; do
+  SELECTION+=("$line")
+done < <(parse_selection "$input" "$TOTAL")
 
 if [[ ${#SELECTION[@]} -eq 0 ]]; then
   echo "⚠️  No valid selections."
