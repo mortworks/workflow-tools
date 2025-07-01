@@ -4,6 +4,19 @@
 # 🧰 hugo-tools/lib/utils.sh — shared utility functions
 # ---------------------------------------------------------
 
+# ---------------------------------------------------------
+# 📦 Load shared metadata helpers
+# ---------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$SCRIPT_DIR"
+
+if [[ -f "$LIB_DIR/metadata.sh" ]]; then
+  source "$LIB_DIR/metadata.sh"
+else
+  echo "❌ [ERROR] Could not load metadata.sh from $LIB_DIR"
+  exit 1
+fi
+
 fatal() {
   echo "❌ [ERROR] $1" >&2
   exit 1
@@ -77,11 +90,28 @@ load_recent_posts() {
 
 list_recent_posts() {
   local count="${1:-10}"
-  local content_dir="$CONTENT_DIR"
-
-  find "$content_dir" -type f -name '*.md' ! -name '_index.md' -print0 |
+  find "$CONTENT_DIR" -type f -name '*.md' ! -name '_index.md' -print0 2>/dev/null |
     xargs -0 stat -f "%m %N" 2>/dev/null |
     sort -rn |
     head -n "$count" |
     cut -d' ' -f2-
 }
+
+display_menu_items() {
+  local -a files=("$@")
+  local index=1
+  for file in "${files[@]}"; do
+    local title date draft
+
+    title=$(awk -F': ' '/^title:/{print $2; exit}' "$file" | tr -d '"' | xargs)
+    date=$(awk -F': ' '/^date:/{print $2; exit}' "$file" | tr -d '"' | xargs)
+    draft=$(awk -F': ' '/^draft:/{print $2; exit}' "$file" | tr -d '"' | xargs)
+
+    local label="[$date] $title"
+    [[ "$draft" == "true" ]] && label="[DRAFT] $label"
+
+    printf "  %2d) %s [%s]\n" "$index" "$label" "$(basename "$file")"
+    ((index++))
+  done
+}
+

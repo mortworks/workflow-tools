@@ -20,13 +20,6 @@ if ! source "$LIB_DIR/hugo.sh" || [[ -z "$HUGO_ENV_OK" ]]; then
   fatal "Aborting: could not load Hugo environment."
 fi
 
-# Load shared metadata functions
-if [[ -f "$LIB_DIR/metadata.sh" ]]; then
-  source "$LIB_DIR/metadata.sh"
-else
-  fatal "Aborting: metadata.sh not found in $LIB_DIR"
-fi
-
 # ---------------------------------------------------------
 # 🔍 Helpers
 # ---------------------------------------------------------
@@ -81,6 +74,7 @@ open_editor_and_commit() {
 echo "📜 Edit mode — recent posts + search options"
 echo "📚 Loading recent posts (all)..."
 
+recent_files=()
 load_recent_posts 10 recent_files
 
 echo ""
@@ -100,6 +94,7 @@ if [[ "$input" == "q" ]]; then
 
 elif [[ "$input" == "a" ]]; then
   echo "📜 Listing all posts..."
+  all_files=()
   load_recent_posts 100 all_files
 
   echo ""

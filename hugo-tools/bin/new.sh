@@ -11,6 +11,18 @@ TEMPLATE_FILE="$BLOG_ROOT/layouts/templates.yaml"
 CONTENT_DIR="$BLOG_ROOT/content/posts"
 
 # ----------------------------------------
+# 🔗 Load shared metadata helpers
+# ----------------------------------------
+LIB_DIR="$SCRIPT_DIR/../lib"
+
+if [[ -f "$LIB_DIR/metadata.sh" ]]; then
+  source "$LIB_DIR/metadata.sh"
+else
+  echo "❌ [ERROR] Could not load metadata helpers from $LIB_DIR/metadata.sh"
+  exit 1
+fi
+
+# ----------------------------------------
 # 🧠 Prompt for title + slug + filename
 # ----------------------------------------
 echo "📄 Enter a title for your new post:"
@@ -23,9 +35,22 @@ SLUG_DEFAULT=$(echo "$TITLE" | \
   sed -E 's/[^a-z0-9]+/-/g' | \
   sed -E 's/^-+|-+$//g')
 
+if [[ ${#SLUG_DEFAULT} -gt 40 ]]; then
+  echo "⚠️ Auto-generated slug is quite long:"
+  echo "   $SLUG_DEFAULT"
+fi
+
 echo "✏️  Enter a custom slug or press Enter to use: $SLUG_DEFAULT"
 read -r SLUG
 SLUG="${SLUG:-$SLUG_DEFAULT}"
+
+# Sanitize again and enforce limit
+SLUG=$(echo "$SLUG" | \
+  iconv -t ascii//TRANSLIT | \
+  tr '[:upper:]' '[:lower:]' | \
+  sed -E 's/[^a-z0-9]+/-/g' | \
+  sed -E 's/^-+|-+$//g')
+SLUG="${SLUG:0:40}"
 
 # Filename logic (based on slug but shorter + no stopwords)
 STOPWORDS=(a the some)
@@ -83,8 +108,34 @@ STRUCTURE_REFS=( $(yq eval ".${POST_TYPE}.structure[].ref" "$TEMPLATE_FILE") )
 # ----------------------------------------
 echo "✅ Post created: $POST_PATH"
 
-# Optionally open in editor
-echo "📝 Open in editor now? [y/N]"
+# ----------------------------------------
+# 🚀 Offer to publish
+# ----------------------------------------
+echo "🚀 Publish this post now? [y/N]"
+read -r PUBLISH
+if [[ "$PUBLISH" =~ ^[Yy]$ ]]; then
+  sed -i.bak 's/^draft: true$/draft: false/' "$POST_PATH" && rm "$POST_PATH.bak"
+  echo "✅ Post marked as published"
+else
+  echo "✅ Post created (still marked as draft)"
+fi
+
+# ----------------------------------------
+# 💬 Optional Git auto-commit
+# ----------------------------------------
+GIT_HELPER="$SCRIPT_DIR/../lib/git-autocommit.sh"
+if [[ -x "$GIT_HELPER" ]]; then
+  "$GIT_HELPER" "$POST_PATH"
+else
+  echo "⚠️ git-autocommit.sh not found or not executable at: $GIT_HELPER"
+  echo "💡 You can run this script manually later to commit:"
+  echo "   $GIT_HELPER \"$POST_PATH\""
+fi
+
+# ----------------------------------------
+# 📝 Offer to open in editor
+# ----------------------------------------
+echo "💝 Open in editor now? [y/N]"
 read -r OPEN
 if [[ "$OPEN" =~ ^[Yy]$ ]]; then
   "${EDITOR:-nano}" "$POST_PATH"

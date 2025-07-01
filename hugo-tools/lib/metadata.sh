@@ -11,25 +11,18 @@ assert_file_exists() {
 }
 
 extract_title() {
-  local file="$1"
-  assert_file_exists "$file" || return 1
-  grep '^title:' "$file" | sed 's/title:[ ]*["'"'"']\{0,1\}\(.*\)["'"'"']\{0,1\}/\1/'
+  grep -i '^title:' "$1" | sed -E 's/^title:[[:space:]]*["'\'']?(.*?)["'\'']?$/\1/'
 }
 
 extract_date() {
-  local file="$1"
-  assert_file_exists "$file" || return 1
-  grep '^date:' "$file" | sed 's/date:[ ]*["'"'"']\{0,1\}\(.*\)["'"'"']\{0,1\}/\1/'
+  grep -i '^date:' "$1" | sed -E 's/^date:[[:space:]]*["'\'']?(.*?)["'\'']?$/\1/'
 }
 
 extract_draft() {
-  local file="$1"
-  assert_file_exists "$file" || return 1
-  grep '^draft:' "$file" | sed 's/draft:[ ]*\([a-z]*\)/\1/'
+  grep -i '^draft:' "$1" | sed -E 's/^draft:[[:space:]]*(true|false)/\1/I'
 }
 
 extract_tags() {
-  local file="$1"
-  assert_file_exists "$file" || return 1
-  grep '^tags:' "$file" | sed 's/tags:[ ]*\[\(.*\)\]/\1/' | tr -d '"'
+  grep -i '^tags:' "$1" | sed -E 's/^tags:[[:space:]]*\[(.*)\]/\1/' | tr -d '"'
 }
+

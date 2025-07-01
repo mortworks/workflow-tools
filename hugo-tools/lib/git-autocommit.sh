@@ -43,5 +43,6 @@ default_message="Auto-commit: changed ${#files[@]} file(s)"
 message="${commit_msg:-$default_message}"
 
 echo "📦 Commit message: $message"
-git commit -m "$message"
+safe_message=$(echo "$message" | tr -d '"')
+git commit -m "$safe_message"
 git push && echo "✅ Pushed to remote"remote"
