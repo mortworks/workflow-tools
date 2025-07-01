@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # ---------------------------------------------------------
 # 📜 Hugo edit post script (YAML-compatible)
 # ---------------------------------------------------------
@@ -42,20 +44,6 @@ match_score() {
   echo "$score"
 }
 
-display_menu_items() {
-  local -a files=("$@")
-  local index=1
-  for file in "${files[@]}"; do
-    local title=$(extract_title "$file")
-    local date=$(extract_date "$file")
-    local draft=$(extract_draft "$file")
-    local label="[$date] $title"
-    [[ "$draft" == "true" ]] && label="[DRAFT] $label"
-    printf "  %2d) %s\n" "$index" "$label"
-    ((index++))
-  done
-}
-
 open_editor_and_commit() {
   local file="$1"
 
@@ -92,10 +80,8 @@ open_editor_and_commit() {
 
 echo "📜 Edit mode — recent posts + search options"
 echo "📚 Loading recent posts (all)..."
-recent_files=()
-while IFS= read -r line; do
-  recent_files+=("$line")
-done < <(list_recent_files "all" 10)
+
+load_recent_posts 10 recent_files
 
 echo ""
 display_menu_items "${recent_files[@]}"
@@ -114,10 +100,7 @@ if [[ "$input" == "q" ]]; then
 
 elif [[ "$input" == "a" ]]; then
   echo "📜 Listing all posts..."
-  all_files=()
-  while IFS= read -r line; do
-    all_files+=("$line")
-  done < <(list_recent_files "all" 100)
+  load_recent_posts 100 all_files
 
   echo ""
   display_menu_items "${all_files[@]}"
@@ -138,17 +121,18 @@ elif [[ "$input" == "s" ]]; then
   matches=()
   scored_lines=()
 
-  for file in $(find "$CONTENT_DIR" -name '*.md'); do
+  for file in $(find "$CONTENT_DIR" -name '*.md' ! -name '_index.md'); do
     title=$(extract_title "$file")
     tags=$(extract_tags "$file")
     combined="$title $tags"
     score=$(match_score "$combined" "${terms[@]}")
     if [[ "$score" -gt 0 ]]; then
-      scored_lines+=("$score $(get_mtime "$file") $file")
+      mtime=$(get_mtime "$file")
+      scored_lines+=("$score $mtime $file")
     fi
   done
 
-  sorted_matches=($(printf "%s\n" "${scored_lines[@]}" | sort -k1,1nr -k2,2nr | cut -d' ' -f3-))
+  sorted_matches=( $(printf "%s\n" "${scored_lines[@]}" | sort -k1,1nr -k2,2nr | cut -d' ' -f3-) )
   echo ""
   echo "🎯 Matching posts:"
   display_menu_items "${sorted_matches[@]}"

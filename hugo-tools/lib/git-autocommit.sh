@@ -1,44 +1,47 @@
 #!/usr/bin/env bash
 
 # ---------------------------------------------------------
-# 📝 Git auto-commit helper
-# Supports: multiple files and custom message with -m
+# 💬 Git auto-commit helper
 # ---------------------------------------------------------
 
-FILES=()
-COMMIT_MSG=""
+commit_msg=""
+files=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -m|--message)
-      shift
-      COMMIT_MSG="$1"
+    -m|--message|--msg|--message=*)
+      if [[ "$1" == *=* ]]; then
+        commit_msg="${1#*=}"
+      else
+        shift
+        commit_msg="$1"
+      fi
       ;;
     *)
-      FILES+=("$1")
+      files+=("$1")
       ;;
   esac
   shift
 done
 
-if [[ ${#FILES[@]} -eq 0 ]]; then
-  echo "❌ No files provided to commit."
+if [[ ${#files[@]} -eq 0 ]]; then
+  echo "❌ No files provided."
   exit 1
 fi
 
-for file in "${FILES[@]}"; do
-  if [[ ! -e "$file" ]]; then
-    echo "⚠️  File not found (skipped): $file"
-    continue
+echo "📝 Committing ${#files[@]} file(s)..."
+
+for file in "${files[@]}"; do
+  if [[ -e "$file" ]]; then
+    git add "$file"
+  else
+    git rm --quiet "$file" 2>/dev/null || echo "⚠️  File not tracked or already deleted: $file"
   fi
-  echo "➕ Staging: $file"
-  git add "$file"
 done
 
-if [[ -z "$COMMIT_MSG" ]]; then
-  COMMIT_MSG="Update post(s): ${FILES[*]}"
-fi
+default_message="Auto-commit: changed ${#files[@]} file(s)"
+message="${commit_msg:-$default_message}"
 
-echo "✅ Committing with message: $COMMIT_MSG"
-git commit -m "$COMMIT_MSG"
-git push && echo "🚀 Pushed to remote"
+echo "📦 Commit message: $message"
+git commit -m "$message"
+git push && echo "✅ Pushed to remote"remote"

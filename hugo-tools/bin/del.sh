@@ -1,155 +1,101 @@
 #!/usr/bin/env bash
 
 # ---------------------------------------------------------
-# 🗑️ Hugo post deletion script (interactive)
+# 🗑️ Hugo post deletion script
 # ---------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
-CONTENT_DIR="$SCRIPT_DIR/../../content/posts"
 
-# Load shared utils
+# Load shared utils and fatal()
 if [[ -f "$LIB_DIR/utils.sh" ]]; then
   source "$LIB_DIR/utils.sh"
 else
-  echo "❌ Could not load utils from $LIB_DIR/utils.sh"
+  echo "❌ [ERROR] Could not load utilities from $LIB_DIR/utils.sh"
   exit 1
 fi
 
-# Load Hugo env
+# Load Hugo environment
 if ! source "$LIB_DIR/hugo.sh" || [[ -z "$HUGO_ENV_OK" ]]; then
-  fatal "Could not load Hugo environment"
+  fatal "Aborting: could not load Hugo environment."
 fi
 
-# Load metadata helpers
+# Load shared metadata functions
 if [[ -f "$LIB_DIR/metadata.sh" ]]; then
   source "$LIB_DIR/metadata.sh"
 else
-  fatal "Could not load metadata.sh"
+  fatal "Aborting: metadata.sh not found in $LIB_DIR"
 fi
 
-# Load git auto-commit
-GIT_HELPER="$LIB_DIR/git-autocommit.sh"
-
 # ---------------------------------------------------------
-# 🧠 Helpers
-# ---------------------------------------------------------
-
-list_all_posts() {
-  find "$CONTENT_DIR" -name "*.md" ! -name "_index.md" -print0 | while IFS= read -r -d '' file; do
-    if [[ "$(uname)" == "Darwin" ]]; then
-      echo "$(stat -f '%m' "$file") $file"
-    else
-      echo "$(stat --format='%Y' "$file") $file"
-    fi
-  done | sort -rn | cut -d' ' -f2-
-}
-
-display_post_menu() {
-  local -a files=("$@")
-  local i=1
-  for file in "${files[@]}"; do
-    local title
-    title=$(extract_title "$file")
-    printf "  %2d) %s [%s]\n" "$i" "$title" "$(basename "$file")"
-    ((i++))
-  done
-}
-
-parse_selection() {
-  local input="$1"
-  local total="$2"
-  local selected=()
-
-  input=$(echo "$input" | tr ',' ' ')
-
-  for part in $input; do
-    if [[ $part =~ ^[0-9]+$ ]]; then
-      selected+=("$part")
-    elif [[ $part =~ ^([0-9]+)-([0-9]+)$ ]]; then
-      for ((i=${BASH_REMATCH[1]}; i<=${BASH_REMATCH[2]}; i++)); do
-        selected+=("$i")
-      done
-    fi
-  done
-
-  echo "${selected[@]}" | tr ' ' '\n' | sort -nu | awk -v max="$total" '$1 >= 1 && $1 <= max'
-}
-
-# ---------------------------------------------------------
-# 🚀 Main
+# 🚀 Main logic
 # ---------------------------------------------------------
 
 echo "🗂️  Available posts for deletion (most recent first):"
-echo ""
+load_recent_posts 20 files
 
-POSTS=()
-while IFS= read -r line; do
-  POSTS+=("$line")
-done < <(list_all_posts)
-
-TOTAL=${#POSTS[@]}
-
-if [[ $TOTAL -eq 0 ]]; then
+if [[ ${#files[@]} -eq 0 ]]; then
   echo "🚫 No posts found."
   exit 0
 fi
 
-display_post_menu "${POSTS[@]}"
+echo ""
+display_menu_items "${files[@]}"
 echo ""
 echo "📝 Enter post numbers to delete (e.g. 1 3 5 or 2-4, or combinations):"
-read -r input
+read -r selection
 
-SELECTION=()
-while IFS= read -r line; do
-  SELECTION+=("$line")
-done < <(parse_selection "$input" "$TOTAL")
-
-if [[ ${#SELECTION[@]} -eq 0 ]]; then
-  echo "⚠️  No valid selections."
-  exit 1
-fi
-
-FILES_TO_DELETE=()
-for i in "${SELECTION[@]}"; do
-  file="${POSTS[$((i - 1))]}"
-  echo -n "❓ Confirm deletion of $(basename "$file")? [y/N] "
-  read -r confirm
-  if [[ "$confirm" =~ ^[Yy]$ ]]; then
-    FILES_TO_DELETE+=("$file")
+# Expand ranges like 2-4 into 2 3 4
+expanded=()
+for part in $selection; do
+  if [[ "$part" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+    for ((i=${BASH_REMATCH[1]}; i<=${BASH_REMATCH[2]}; i++)); do
+      expanded+=("$i")
+    done
+  elif [[ "$part" =~ ^[0-9]+$ ]]; then
+    expanded+=("$part")
   fi
 done
 
-if [[ ${#FILES_TO_DELETE[@]} -eq 0 ]]; then
-  echo "❌ No files deleted."
+# Validate and collect confirmed deletions
+to_delete=()
+for index in "${expanded[@]}"; do
+  if [[ "$index" -ge 1 && "$index" -le ${#files[@]} ]]; then
+    file="${files[$((index - 1))]}"
+    filename="$(basename "$file")"
+    echo -n "❓ Confirm deletion of $filename? [y/N] "
+    read -r confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+      to_delete+=("$file")
+    fi
+  fi
+done
+
+if [[ ${#to_delete[@]} -eq 0 ]]; then
+  echo "❌ No files confirmed for deletion."
   exit 0
 fi
 
+# Delete and commit
 echo ""
-echo "🧹 Deleting ${#FILES_TO_DELETE[@]} post(s)..."
-for file in "${FILES_TO_DELETE[@]}"; do
-  rm -f "$file"
-  echo "🗑️  Deleted: $(basename "$file")"
+echo "🧹 Deleting ${#to_delete[@]} post(s)..."
+for file in "${to_delete[@]}"; do
+  rm -f "$file" && echo "🗑️  Deleted: $(basename "$file")"
 done
-
-# ---------------------------------------------------------
-# 💬 Git auto-commit
-# ---------------------------------------------------------
 
 echo ""
 echo "🚀 Commit and push deletions? [y/N]"
-read -r confirm
-if [[ "$confirm" =~ ^[Yy]$ ]]; then
+read -r do_commit
+if [[ "$do_commit" =~ ^[Yy]$ ]]; then
+  GIT_HELPER="$LIB_DIR/git-autocommit.sh"
+  message="🗑️ Deleted ${#to_delete[@]} post(s)"
   if [[ -x "$GIT_HELPER" ]]; then
-    COMMIT_MSG="🗑️ Deleted ${#FILES_TO_DELETE[@]} post(s)"
-    "$GIT_HELPER" "${FILES_TO_DELETE[@]}" -m "$COMMIT_MSG"
-    echo "✅ Changes committed and pushed."
+    "$GIT_HELPER" "${to_delete[@]}" --message "$message"
   else
     echo "⚠️  git-autocommit.sh not found or not executable at: $GIT_HELPER"
   fi
 else
-  echo "💡 You can commit manually later with:"
-  for f in "${FILES_TO_DELETE[@]}"; do
-    echo "   git rm \"$f\""
-  done
+  echo "💡 Remember to commit manually:"
+  printf '   git rm "%s"\n' "${to_delete[@]}"
+  echo "   git commit -m \"Deleted posts\" && git push"
 fi
