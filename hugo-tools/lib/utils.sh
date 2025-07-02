@@ -101,17 +101,15 @@ display_menu_items() {
   local -a files=("$@")
   local index=1
   for file in "${files[@]}"; do
-    local title date draft
-
-    title=$(awk -F': ' '/^title:/{print $2; exit}' "$file" | tr -d '"' | xargs)
-    date=$(awk -F': ' '/^date:/{print $2; exit}' "$file" | tr -d '"' | xargs)
-    draft=$(awk -F': ' '/^draft:/{print $2; exit}' "$file" | tr -d '"' | xargs)
-
-    local label="[$date] $title"
+    local title date draft label
+    title=$(extract_title "$file")
+    date=$(extract_date "$file")
+    draft=$(extract_draft "$file")
+    label="[$date] $title"
     [[ "$draft" == "true" ]] && label="[DRAFT] $label"
-
     printf "  %2d) %s [%s]\n" "$index" "$label" "$(basename "$file")"
     ((index++))
   done
 }
+
 
