@@ -86,31 +86,47 @@ POST_TYPE="${TEMPLATES[$INDEX]}"
 DATE=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # Merge YAML template and inject values directly using mikefarah/yq syntax
-# Build front matter expression in a temporary file
+# Create a safe yq expression using envsubst
 YQ_EXPR_FILE=$(mktemp)
+TEMPLATE_EXPR_FILE=$(mktemp)
 
-cat > "$YQ_EXPR_FILE" <<EOF
-.${POST_TYPE} as \$base |
-{
-  title: \"$TITLE\",
-  date: \"$DATE\",
-  draft: true,
-  slug: \"$SLUG\",
-  layout: \$base.layout,
-  structure: \$base.structure,
-  anchors: \$base.anchors
+cat > "$TEMPLATE_EXPR_FILE" <<'EOF'
+.${POST_TYPE} as $base |
+. = {
+  "title": "${TITLE}",
+  "date": "${DATE}",
+  "draft": true,
+  "slug": "${SLUG}",
+  "layout": $base.layout,
+  "structure": $base.structure,
+  "anchors": $base.anchors
 }
 EOF
 
-FRONT_MATTER=$(yq eval - < "$TEMPLATE_FILE") || {
+
+echo "DEBUG: TITLE='$TITLE'"
+echo "DEBUG: DATE='$DATE'"
+echo "DEBUG: SLUG='$SLUG'"
+echo "DEBUG: POST_TYPE='$POST_TYPE'"
+
+
+# Substitute variables safely
+export TITLE DATE SLUG POST_TYPE
+envsubst '${TITLE} ${DATE} ${SLUG} ${POST_TYPE}' < "$TEMPLATE_EXPR_FILE" > "$YQ_EXPR_FILE"
+
+echo "----- YQ EXPRESSION -----"
+cat "$YQ_EXPR_FILE"
+echo "-------------------------"
+
+
+# Evaluate YAML front matter
+FRONT_MATTER=$(yq eval --from-file "$YQ_EXPR_FILE" "$TEMPLATE_FILE") || {
   echo "❌ [ERROR] Failed to generate front matter. Aborting."
-  rm -f "$YQ_EXPR_FILE"
+  rm -f "$YQ_EXPR_FILE" "$TEMPLATE_EXPR_FILE"
   exit 1
 }
 
-rm -f "$YQ_EXPR_FILE"
-
-
+rm -f "$YQ_EXPR_FILE" "$TEMPLATE_EXPR_FILE"
 
 STRUCTURE_REFS=( $(yq eval ".${POST_TYPE}.structure[].ref" "$TEMPLATE_FILE") )
 
