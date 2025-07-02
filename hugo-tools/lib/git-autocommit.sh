@@ -9,13 +9,9 @@ files=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -m|--message|--msg|--message=*)
-      if [[ "$1" == *=* ]]; then
-        commit_msg="${1#*=}"
-      else
-        shift
-        commit_msg="$1"
-      fi
+    -m|--message)
+      shift
+      commit_msg="$1"
       ;;
     *)
       files+=("$1")
@@ -39,10 +35,9 @@ for file in "${files[@]}"; do
   fi
 done
 
-default_message="Auto-commit: changed ${#files[@]} file(s)"
-message="${commit_msg:-$default_message}"
+default_message="Update ${#files[@]} file(s)"
+final_message="${commit_msg:-$default_message}"
 
-echo "📦 Commit message: $message"
-safe_message=$(echo "$message" | tr -d '"')
-git commit -m "$safe_message"
-git push && echo "✅ Pushed to remote"remote"
+echo "📦 Commit message: $final_message"
+git commit -m "$final_message"
+git push && echo "✅ Pushed to remote"
