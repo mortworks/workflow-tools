@@ -75,7 +75,9 @@ echo "📜 Edit mode — recent posts + search options"
 echo "📚 Loading recent posts (all)..."
 
 recent_files=()
-load_recent_posts 10 recent_files
+while IFS= read -r line; do
+  recent_files+=("$line")
+done < <(list_recent_posts "all" 10)
 
 echo ""
 display_menu_items "${recent_files[@]}"
@@ -95,7 +97,9 @@ if [[ "$input" == "q" ]]; then
 elif [[ "$input" == "a" ]]; then
   echo "📜 Listing all posts..."
   all_files=()
-  load_recent_posts 100 all_files
+  while IFS= read -r line; do
+    all_files+=("$line")
+  done < <(list_recent_posts "all" 100)
 
   echo ""
   display_menu_items "${all_files[@]}"
@@ -113,21 +117,25 @@ elif [[ "$input" == "s" ]]; then
   read -r query
   IFS=' ' read -r -a terms <<< "$query"
 
-  matches=()
-  scored_lines=()
-
-  for file in $(find "$CONTENT_DIR" -name '*.md' ! -name '_index.md'); do
+  tmpfile=$(mktemp)
+  while IFS= read -r -d '' file; do
     title=$(extract_title "$file")
     tags=$(extract_tags "$file")
-    combined="$title $tags"
+    filename="$(basename "$file" .md)"
+    combined="$title $tags $filename"
     score=$(match_score "$combined" "${terms[@]}")
-    if [[ "$score" -gt 0 ]]; then
-      mtime=$(get_mtime "$file")
-      scored_lines+=("$score $mtime $file")
-    fi
-  done
 
-  sorted_matches=( $(printf "%s\n" "${scored_lines[@]}" | sort -k1,1nr -k2,2nr | cut -d' ' -f3-) )
+    if [[ "$score" -gt 0 ]]; then
+      printf "%d\t%s\t%s\n" "$score" "$(get_mtime "$file")" "$file" >> "$tmpfile"
+    fi
+  done < <(find "$CONTENT_DIR" -name '*.md' -print0)
+
+  sorted_matches=()
+  while IFS=$'\t' read -r score mtime file; do
+    sorted_matches+=("$file")
+  done < <(sort -t$'\t' -k1,1nr -k2,2nr "$tmpfile")
+  rm -f "$tmpfile"
+
   echo ""
   echo "🎯 Matching posts:"
   display_menu_items "${sorted_matches[@]}"

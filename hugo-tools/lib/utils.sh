@@ -5,6 +5,20 @@
 # ---------------------------------------------------------
 
 # ---------------------------------------------------------
+# 🕒 Cross-platform file mtime
+# ---------------------------------------------------------
+get_mtime() {
+  local file="$1"
+  if stat --version >/dev/null 2>&1; then
+    # Linux / GNU stat
+    stat -c "%Y" "$file"
+  else
+    # macOS / BSD stat
+    stat -f "%m" "$file"
+  fi
+}
+
+# ---------------------------------------------------------
 # 📦 Load shared metadata helpers
 # ---------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -88,28 +102,50 @@ load_recent_posts() {
   done < <(list_recent_posts "$limit")
 }
 
+# ---------------------------------------------------------
+# 📁 list_recent_files — list recent Markdown posts
+# ---------------------------------------------------------
+
 list_recent_posts() {
-  local count="${1:-10}"
-  find "$CONTENT_DIR" -type f -name '*.md' ! -name '_index.md' -print0 2>/dev/null |
-    xargs -0 stat -f "%m %N" 2>/dev/null |
-    sort -rn |
-    head -n "$count" |
-    cut -d' ' -f2-
+  local mode="${1:-all}"
+  local count="${2:-10}"
+  local content_dir="$CONTENT_DIR"
+
+  if [[ -z "$content_dir" ]]; then
+    fatal "CONTENT_DIR is not set"
+  fi
+
+  if [[ "$mode" == "drafts" ]]; then
+    files=$(find "$content_dir" -type f -name '*.md' ! -name '_index.md' -exec grep -l '^draft: true' {} + 2>/dev/null)
+  else
+    files=$(find "$content_dir" -type f -name '*.md' ! -name '_index.md' 2>/dev/null)
+  fi
+
+  echo "$files" | while IFS= read -r file; do
+    if [[ -f "$file" ]]; then
+      printf "%s\t%s\n" "$(get_mtime "$file")" "$file"
+    fi
+  done | sort -rn | head -n "$count" | cut -f2-
 }
 
 display_menu_items() {
   local -a files=("$@")
   local index=1
   for file in "${files[@]}"; do
-    local title date draft label
-    title=$(extract_title "$file")
-    date=$(extract_date "$file")
-    draft=$(extract_draft "$file")
-    label="[$date] $title"
-    [[ "$draft" == "true" ]] && label="[DRAFT] $label"
-    printf "  %2d) %s [%s]\n" "$index" "$label" "$(basename "$file")"
+    local title=$(extract_title "$file")
+    local date=$(extract_date "$file")
+    local draft=$(extract_draft "$file")
+
+    # Normalise fields for alignment
+    [[ "$draft" == "true" ]] && draft="[DRAFT]" || draft=""
+    [[ -z "$date" ]] && date="??-??-????"
+
+    # Fixed-width formatting: 10 chars for draft, 12 for date
+    printf "  %2d) %-10s [%-12s] %s [%s]\n" \
+      "$index" "$draft" "$date" "$title" "$(basename "$file")"
     ((index++))
   done
 }
+
 
 
