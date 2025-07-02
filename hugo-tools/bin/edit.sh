@@ -40,30 +40,27 @@ match_score() {
 open_editor_and_commit() {
   local file="$1"
 
-  echo "📝 Opening: $file"
-  "${EDITOR:-nano}" "$file"
-
-  echo ""
-  echo "✏️  Would you like to update the slug and filename? [y/N]"
-  read -r update_slug
-  if [[ "$update_slug" =~ ^[Yy]$ ]]; then
-    update_post_slug "$file"
-    file="$UPDATED_POST_PATH"
+  if command -v code >/dev/null 2>&1; then
+    echo "📝 Opening in VS Code: $file"
+    code --wait "$file"
+  elif [[ -n "$EDITOR" ]]; then
+    echo "📝 Opening in editor defined by \$EDITOR: $file"
+    "$EDITOR" "$file"
+  else
+    echo "📝 Opening in fallback editor (nano): $file"
+    nano "$file"
   fi
 
   echo ""
-  echo "🚀 Commit and push this change? [y/N]"
+  echo "✅ Finished editing. Commit changes? [y/N]"
   read -r confirm
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
-    local GIT_HELPER="$LIB_DIR/git-autocommit.sh"
-    if [[ -x "$GIT_HELPER" ]]; then
-      "$GIT_HELPER" "$file"
-    else
-      echo "⚠️  git-autocommit.sh not found at $GIT_HELPER"
-    fi
+    git add "$file"
+    git commit -m "Edit post: $(basename "$file")"
+    git push
+    echo "✅ Changes committed and pushed."
   else
-    echo "💡 You can commit manually later:"
-    echo "   git add \"$file\" && git commit && git push"
+    echo "🚫 Changes not committed."
   fi
 }
 
@@ -144,7 +141,7 @@ elif [[ "$input" == "s" ]]; then
       fatal "Invalid selection."
     fi
   fi
-  
+
 elif [[ "$input" =~ ^[0-9]+$ && "$input" -ge 1 && "$input" -le ${#recent_files[@]} ]]; then
   file="${recent_files[$((input - 1))]}"
   open_editor_and_commit "$file"
