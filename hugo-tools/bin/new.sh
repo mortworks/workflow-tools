@@ -53,8 +53,8 @@ SLUG=$(echo "$SLUG" | \
 SLUG="${SLUG:0:40}"
 
 # Filename logic (based on slug but shorter + no stopwords)
-STOPWORDS=(a the some)
-FILENAME=$(echo "$SLUG" | tr '-' '\n' | grep -vwF "${STOPWORDS[@]}" | head -n 5 | paste -sd- -)
+STOPWORDS_RE="^(a|the|some)$"
+FILENAME=$(echo "$SLUG" | tr '-' '\n' | awk "!/$STOPWORDS_RE/" | head -n 5 | paste -sd- -)
 FILENAME=${FILENAME:0:20}  # truncate to 20 chars max
 
 echo "🔢  Enter a custom filename or press Enter to use: $FILENAME.md"
