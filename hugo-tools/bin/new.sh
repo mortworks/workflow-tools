@@ -85,10 +85,6 @@ POST_TYPE="${TEMPLATES[$INDEX]}"
 # ----------------------------------------
 DATE=$(date +"%Y-%m-%dT%H:%M:%S")
 
-echo "DEBUG: yq location: $(command -v yq)"
-echo "DEBUG: yq version: $(yq --version)"
-
-
 # Merge YAML template and inject values directly using mikefarah/yq syntax
 # Build front matter expression in a temporary file
 YQ_EXPR_FILE=$(mktemp)
