@@ -117,7 +117,7 @@ elif [[ "$input" == "s" ]]; then
   read -r query
   IFS=' ' read -r -a terms <<< "$query"
 
-  tmpfile=$(mktemp)
+  matching_files=()
   while IFS= read -r -d '' file; do
     title=$(extract_title "$file")
     tags=$(extract_tags "$file")
@@ -126,28 +126,25 @@ elif [[ "$input" == "s" ]]; then
     score=$(match_score "$combined" "${terms[@]}")
 
     if [[ "$score" -gt 0 ]]; then
-      printf "%d\t%s\t%s\n" "$score" "$(get_mtime "$file")" "$file" >> "$tmpfile"
+      matching_files+=("$file")
     fi
   done < <(find "$CONTENT_DIR" -name '*.md' -print0)
 
-  sorted_matches=()
-  while IFS=$'\t' read -r score mtime file; do
-    sorted_matches+=("$file")
-  done < <(sort -t$'\t' -k1,1nr -k2,2nr "$tmpfile")
-  rm -f "$tmpfile"
-
-  echo ""
-  echo "🎯 Matching posts:"
-  display_menu_items "${sorted_matches[@]}"
-  echo -n "Choose post number [1-${#sorted_matches[@]}]: "
-  read -r num
-  if [[ "$num" =~ ^[0-9]+$ && "$num" -ge 1 && "$num" -le ${#sorted_matches[@]} ]]; then
-    file="${sorted_matches[$((num - 1))]}"
-    open_editor_and_commit "$file"
+  if [[ ${#matching_files[@]} -eq 0 ]]; then
+    echo "❌ No matches found."
   else
-    fatal "Invalid selection."
+    echo ""
+    display_menu_items "${matching_files[@]}"
+    echo -n "Choose post number [1-${#matching_files[@]}]: "
+    read -r num
+    if [[ "$num" =~ ^[0-9]+$ && "$num" -ge 1 && "$num" -le ${#matching_files[@]} ]]; then
+      file="${matching_files[$((num - 1))]}"
+      open_editor_and_commit "$file"
+    else
+      fatal "Invalid selection."
+    fi
   fi
-
+  
 elif [[ "$input" =~ ^[0-9]+$ && "$input" -ge 1 && "$input" -le ${#recent_files[@]} ]]; then
   file="${recent_files[$((input - 1))]}"
   open_editor_and_commit "$file"

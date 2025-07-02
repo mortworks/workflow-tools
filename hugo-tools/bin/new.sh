@@ -103,13 +103,6 @@ cat > "$TEMPLATE_EXPR_FILE" <<'EOF'
 }
 EOF
 
-
-echo "DEBUG: TITLE='$TITLE'"
-echo "DEBUG: DATE='$DATE'"
-echo "DEBUG: SLUG='$SLUG'"
-echo "DEBUG: POST_TYPE='$POST_TYPE'"
-
-
 # Substitute variables safely
 export TITLE DATE SLUG POST_TYPE
 envsubst '${TITLE} ${DATE} ${SLUG} ${POST_TYPE}' < "$TEMPLATE_EXPR_FILE" > "$YQ_EXPR_FILE"
@@ -168,13 +161,4 @@ else
   echo "⚠️ git-autocommit.sh not found or not executable at: $GIT_HELPER"
   echo "💡 You can run this script manually later to commit:"
   echo "   $GIT_HELPER \"$POST_PATH\""
-fi
-
-# ----------------------------------------
-# 📝 Offer to open in editor
-# ----------------------------------------
-echo "💝 Open in editor now? [y/N]"
-read -r OPEN
-if [[ "$OPEN" =~ ^[Yy]$ ]]; then
-  "${EDITOR:-nano}" "$POST_PATH"
 fi

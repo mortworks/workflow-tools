@@ -141,11 +141,8 @@ display_menu_items() {
     [[ -z "$date" ]] && date="??-??-????"
 
     # Fixed-width formatting: 10 chars for draft, 12 for date
-    printf "  %2d) %-10s [%-12s] %s [%s]\n" \
+    printf "  %2d) %-10s [%-10s] %s [%s]\n" \
       "$index" "$draft" "$date" "$title" "$(basename "$file")"
     ((index++))
   done
 }
-
-
-
