@@ -85,10 +85,36 @@ POST_TYPE="${TEMPLATES[$INDEX]}"
 # ----------------------------------------
 DATE=$(date +"%Y-%m-%dT%H:%M:%S")
 
+echo "DEBUG: yq location: $(command -v yq)"
+echo "DEBUG: yq version: $(yq --version)"
+
+
 # Merge YAML template and inject values directly using mikefarah/yq syntax
-FRONT_MATTER=$(yq eval \
-  ".[\"$POST_TYPE\"] | .title=\"$TITLE\" | .date=\"$DATE\" | .draft=true | .slug=\"$SLUG\"" \
-  "$TEMPLATE_FILE")
+# Build front matter expression in a temporary file
+YQ_EXPR_FILE=$(mktemp)
+
+cat > "$YQ_EXPR_FILE" <<EOF
+.${POST_TYPE} as \$base |
+{
+  title: \"$TITLE\",
+  date: \"$DATE\",
+  draft: true,
+  slug: \"$SLUG\",
+  layout: \$base.layout,
+  structure: \$base.structure,
+  anchors: \$base.anchors
+}
+EOF
+
+FRONT_MATTER=$(yq eval - < "$TEMPLATE_FILE") || {
+  echo "❌ [ERROR] Failed to generate front matter. Aborting."
+  rm -f "$YQ_EXPR_FILE"
+  exit 1
+}
+
+rm -f "$YQ_EXPR_FILE"
+
+
 
 STRUCTURE_REFS=( $(yq eval ".${POST_TYPE}.structure[].ref" "$TEMPLATE_FILE") )
 
