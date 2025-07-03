@@ -78,6 +78,7 @@ update_post_slug() {
   local new_file
   new_file="$(dirname "$file")/$new_slug.md"
 
+  # Rename the file and update the front matter (YAML)
   mv "$file" "$new_file"
   sed -i.bak "s/^slug: .*/slug: \"$new_slug\"/" "$new_file" && rm "$new_file.bak"
 
@@ -90,9 +91,10 @@ update_post_slug() {
 # ---------------------------------------------------------
 # 📄 List recent posts (excludes _index.md)
 # ---------------------------------------------------------
+
 load_recent_posts() {
   local limit="$1"
-  local -n result_ref="$2"
+  local -n result_ref="$2"  # Use nameref to pass array by reference
 
   result_ref=()
   while IFS= read -r line; do
@@ -101,8 +103,9 @@ load_recent_posts() {
 }
 
 # ---------------------------------------------------------
-# 📁 list_recent_posts — list recent Markdown posts
+# 📁 list_recent_files — list recent Markdown posts
 # ---------------------------------------------------------
+
 list_recent_posts() {
   local mode="${1:-all}"
   local count="${2:-10}"
@@ -112,7 +115,6 @@ list_recent_posts() {
     fatal "CONTENT_DIR is not set"
   fi
 
-  local files
   if [[ "$mode" == "drafts" ]]; then
     files=$(find "$content_dir" -type f -name '*.md' ! -name '_index.md' -exec grep -l '^draft: true' {} + 2>/dev/null)
   else
@@ -121,19 +123,11 @@ list_recent_posts() {
 
   echo "$files" | while IFS= read -r file; do
     if [[ -f "$file" ]]; then
-      local full_date
-      full_date=$(yq eval '.date' "$file" 2>/dev/null)
-      if [[ "$full_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$ ]]; then
-        sortable=$(echo "$full_date" | sed -E 's/[-:]//g' | sed 's/T//')
-        printf "%s\t%s\n" "$sortable" "$file"
-      fi
+      printf "%s\t%s\n" "$(get_mtime "$file")" "$file"
     fi
-  done | LC_ALL=C sort -t$'\t' -k1,1nr | cut -f2- | head -n "$count"
+  done | sort -rn | head -n "$count" | cut -f2-
 }
 
-# ---------------------------------------------------------
-# 📋 display_menu_items — nice listing of posts
-# ---------------------------------------------------------
 display_menu_items() {
   local -a files=("$@")
   local index=1
@@ -142,9 +136,11 @@ display_menu_items() {
     local date=$(extract_date "$file")
     local draft=$(extract_draft "$file")
 
+    # Normalise fields for alignment
     [[ "$draft" == "true" ]] && draft="[DRAFT]" || draft=""
     [[ -z "$date" ]] && date="??-??-????"
 
+    # Fixed-width formatting: 10 chars for draft, 12 for date
     printf "  %2d) %-10s [%-10s] %s [%s]\n" \
       "$index" "$draft" "$date" "$title" "$(basename "$file")"
     ((index++))
