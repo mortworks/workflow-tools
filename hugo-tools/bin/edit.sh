@@ -55,6 +55,7 @@ open_editor_and_commit() {
   echo "✅ Finished editing. Commit changes? [y/N]"
   read -r confirm
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    update_lastmod_field "$file"   # <<< Add this line
     git add "$file"
     git commit -m "Edit post: $(basename "$file")"
     git push
@@ -63,6 +64,7 @@ open_editor_and_commit() {
     echo "🚫 Changes not committed."
   fi
 }
+
 
 # ---------------------------------------------------------
 # 🚀 Main logic

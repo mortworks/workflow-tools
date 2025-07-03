@@ -95,6 +95,7 @@ cat > "$TEMPLATE_EXPR_FILE" <<'EOF'
 . = {
   "title": "${TITLE}",
   "date": "${DATE}",
+  "lastmod": "${DATE}",
   "draft": true,
   "slug": "${SLUG}",
   "layout": $base.layout,

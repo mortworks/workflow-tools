@@ -146,3 +146,19 @@ display_menu_items() {
     ((index++))
   done
 }
+
+# ---------------------------------------------------------
+# 📆 Update 'lastmod' field in front matter
+# ---------------------------------------------------------
+update_lastmod_field() {
+  local file="$1"
+  local now
+  now=$(date -u +"%Y-%m-%dT%H:%M:%S")
+
+  if command -v yq &>/dev/null; then
+    yq -i ".lastmod = \"$now\"" "$file"
+    echo "🕒 Updated lastmod: $now"
+  else
+    echo "⚠️  yq is not installed. Skipping lastmod update."
+  fi
+}
