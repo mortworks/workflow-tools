@@ -11,7 +11,7 @@ TEMPLATE_FILE="$BLOG_ROOT/layouts/templates.yaml"
 CONTENT_DIR="$BLOG_ROOT/content/posts"
 
 # ----------------------------------------
-# 🔗 Load shared metadata helpers
+# 🔗 Load shared metadata + utility helpers
 # ----------------------------------------
 LIB_DIR="$SCRIPT_DIR/../lib"
 
@@ -19,6 +19,13 @@ if [[ -f "$LIB_DIR/metadata.sh" ]]; then
   source "$LIB_DIR/metadata.sh"
 else
   echo "❌ [ERROR] Could not load metadata helpers from $LIB_DIR/metadata.sh"
+  exit 1
+fi
+
+if [[ -f "$LIB_DIR/utils.sh" ]]; then
+  source "$LIB_DIR/utils.sh"
+else
+  echo "❌ [ERROR] Could not load utility helpers from $LIB_DIR/utils.sh"
   exit 1
 fi
 
@@ -96,6 +103,7 @@ cat > "$TEMPLATE_EXPR_FILE" <<'EOF'
   "title": "${TITLE}",
   "date": "${DATE}",
   "lastmod": "${DATE}",
+  "published": "${DATE}",
   "draft": true,
   "slug": "${SLUG}",
   "layout": $base.layout,
@@ -146,7 +154,25 @@ echo "✅ Post created: $POST_PATH"
 echo "🚀 Publish this post now? [y/N]"
 read -r PUBLISH
 if [[ "$PUBLISH" =~ ^[Yy]$ ]]; then
-  sed -i.bak 's/^draft: true$/draft: false/' "$POST_PATH" && rm "$POST_PATH.bak"
+  NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  # Mark as not a draft
+  sed -i.bak 's/^draft: true$/draft: false/' "$POST_PATH"
+
+  # Update published field using yq
+  if command -v yq >/dev/null 2>&1; then
+    yq -i ".published = \"$NOW\"" "$POST_PATH"
+  else
+    echo "❌ 'yq' is required to update 'published' field but not found."
+    exit 1
+  fi
+
+  # Use shared function to update lastmod
+  update_lastmod_field "$POST_PATH"
+
+  # Remove backup
+  rm -f "$POST_PATH.bak"
+
   echo "✅ Post marked as published"
 else
   echo "✅ Post created (still marked as draft)"
