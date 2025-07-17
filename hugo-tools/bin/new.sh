@@ -7,7 +7,7 @@
 # ----------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BLOG_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
-TEMPLATE_FILE="$BLOG_ROOT/layouts/templates.yaml"
+TEMPLATE_FILE="$BLOG_ROOT/data/templates.yaml"
 CONTENT_DIR="$BLOG_ROOT/content/posts"
 
 # ----------------------------------------
@@ -62,7 +62,7 @@ SLUG="${SLUG:0:40}"
 # Filename logic (based on slug but shorter + no stopwords)
 STOPWORDS_RE="^(a|the|some)$"
 FILENAME=$(echo "$SLUG" | tr '-' '\n' | awk "!/$STOPWORDS_RE/" | head -n 5 | paste -sd- -)
-FILENAME=${FILENAME:30}  # truncate to 30 chars max
+FILENAME=${FILENAME:0:30}  # truncate to 30 chars max
 
 echo "🔢  Enter a custom filename or press Enter to use: $FILENAME.md"
 read -r FILENAME_INPUT
@@ -72,7 +72,6 @@ POST_PATH="$CONTENT_DIR/$FILENAME.md"
 # ----------------------------------------
 # 📚 Load available templates
 # ----------------------------------------
-
 TEMPLATES=()
 load_available_templates TEMPLATES
 
@@ -86,28 +85,16 @@ INDEX=$(( (CHOICE > 0 ? CHOICE : 1) - 1 ))
 POST_TYPE="${TEMPLATES[$INDEX]}"
 
 # ----------------------------------------
-# 📄 Determine template file source
-# ----------------------------------------
-
-TEMPLATE_FILE=""
-GLOBAL_TEMPLATE_FILE="$SCRIPT_DIR/../data/global-templates.yaml"
-LOCAL_TEMPLATE_FILE="$BLOG_ROOT/data/templates.yaml"
-
-if yq eval ".\"$POST_TYPE\"" "$LOCAL_TEMPLATE_FILE" &>/dev/null; then
-  TEMPLATE_FILE="$LOCAL_TEMPLATE_FILE"
-elif yq eval ".\"$POST_TYPE\"" "$GLOBAL_TEMPLATE_FILE" &>/dev/null; then
-  TEMPLATE_FILE="$GLOBAL_TEMPLATE_FILE"
-else
-  fatal "Template '$POST_TYPE' not found in either template file."
-fi
-
-# ----------------------------------------
 # 🛠 Build front matter + placeholder anchors
 # ----------------------------------------
+if ! yq eval ".\"$POST_TYPE\"" "$TEMPLATE_FILE" &>/dev/null; then
+  echo "❌ [ERROR] Template '$POST_TYPE' not found in $TEMPLATE_FILE"
+  exit 1
+fi
+
 DATE=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # Merge YAML template and inject values directly using mikefarah/yq syntax
-# Create a safe yq expression using envsubst
 YQ_EXPR_FILE=$(mktemp)
 TEMPLATE_EXPR_FILE=$(mktemp)
 
@@ -126,16 +113,9 @@ cat > "$TEMPLATE_EXPR_FILE" <<'EOF'
 }
 EOF
 
-# Substitute variables safely
 export TITLE DATE SLUG POST_TYPE
 envsubst '${TITLE} ${DATE} ${SLUG} ${POST_TYPE}' < "$TEMPLATE_EXPR_FILE" > "$YQ_EXPR_FILE"
 
-echo "----- YQ EXPRESSION -----"
-cat "$YQ_EXPR_FILE"
-echo "-------------------------"
-
-
-# Evaluate YAML front matter
 FRONT_MATTER=$(yq eval --from-file "$YQ_EXPR_FILE" "$TEMPLATE_FILE") || {
   echo "❌ [ERROR] Failed to generate front matter. Aborting."
   rm -f "$YQ_EXPR_FILE" "$TEMPLATE_EXPR_FILE"
@@ -144,6 +124,9 @@ FRONT_MATTER=$(yq eval --from-file "$YQ_EXPR_FILE" "$TEMPLATE_FILE") || {
 
 rm -f "$YQ_EXPR_FILE" "$TEMPLATE_EXPR_FILE"
 
+# ----------------------------------------
+# 📌 Inject anchor comments (if present)
+# ----------------------------------------
 if yq eval ".${POST_TYPE}.structure" "$TEMPLATE_FILE" &>/dev/null; then
   STRUCTURE_REFS=( $(yq eval ".${POST_TYPE}.structure[].ref" "$TEMPLATE_FILE" 2>/dev/null) )
 else
@@ -177,11 +160,8 @@ echo "🚀 Publish this post now? [y/N]"
 read -r PUBLISH
 if [[ "$PUBLISH" =~ ^[Yy]$ ]]; then
   NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-  # Mark as not a draft
   sed -i.bak 's/^draft: true$/draft: false/' "$POST_PATH"
 
-  # Update published field using yq
   if command -v yq >/dev/null 2>&1; then
     yq -i ".published = \"$NOW\"" "$POST_PATH"
   else
@@ -189,10 +169,7 @@ if [[ "$PUBLISH" =~ ^[Yy]$ ]]; then
     exit 1
   fi
 
-  # Use shared function to update lastmod
   update_lastmod_field "$POST_PATH"
-
-  # Remove backup
   rm -f "$POST_PATH.bak"
 
   echo "✅ Post marked as published"
