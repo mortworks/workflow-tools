@@ -1,0 +1,36 @@
+# global-templates.yaml
+# ----------------------
+# These are blog-agnostic, reusable templates designed for use in any Hugo site.
+# 
+# The entries below can be used by `new.sh` as universal scaffolds, and are 
+# especially useful when creating posts that are either:
+#   - simple Markdown-only ("blank"), or
+#   - hand-tooled composite posts ("custom")
+# 
+# These global templates should NOT be edited on a per-blog basis. 
+# Blog-specific templates belong in <blog>/data/templates.yaml.
+
+blank:
+  layout: post
+  draft: true
+  # structure: []  # Uncomment and edit to activate composite rendering
+  anchors: []
+  note: "# This is a plain Markdown post. To override and use blocks, uncomment 'structure'."
+
+custom:
+  layout: post
+  draft: true
+  structure:
+    - type: text
+      ref: introduction
+    - type: scaffold
+      ref: sample-scaffold
+    - type: text
+      ref: conclusion
+  anchors:
+    - introduction
+    - conclusion
+  note: |
+    # This is a scaffold-ready post.
+    # You can edit the structure manually or copy/paste from other posts.
+    # Useful for early prototyping or mixing components directly.

@@ -62,7 +62,7 @@ SLUG="${SLUG:0:40}"
 # Filename logic (based on slug but shorter + no stopwords)
 STOPWORDS_RE="^(a|the|some)$"
 FILENAME=$(echo "$SLUG" | tr '-' '\n' | awk "!/$STOPWORDS_RE/" | head -n 5 | paste -sd- -)
-FILENAME=${FILENAME:0:20}  # truncate to 20 chars max
+FILENAME=${FILENAME:30}  # truncate to 30 chars max
 
 echo "🔢  Enter a custom filename or press Enter to use: $FILENAME.md"
 read -r FILENAME_INPUT
@@ -70,14 +70,12 @@ FILENAME="${FILENAME_INPUT:-$FILENAME}"
 POST_PATH="$CONTENT_DIR/$FILENAME.md"
 
 # ----------------------------------------
-# 📚 Read available templates from templates.yaml
+# 📚 Load available templates
 # ----------------------------------------
-if [[ ! -f "$TEMPLATE_FILE" ]]; then
-  echo "❌ Error: templates.yaml not found at $TEMPLATE_FILE"
-  exit 1
-fi
 
-TEMPLATES=( $(yq eval 'keys | .[]' "$TEMPLATE_FILE") )
+TEMPLATES=()
+load_available_templates TEMPLATES
+
 echo "🧩 Choose a post type:"
 for i in "${!TEMPLATES[@]}"; do
   printf "  %2d) %s\n" "$((i+1))" "${TEMPLATES[$i]}"
@@ -86,6 +84,22 @@ echo "Enter a number [1]:"
 read -r CHOICE
 INDEX=$(( (CHOICE > 0 ? CHOICE : 1) - 1 ))
 POST_TYPE="${TEMPLATES[$INDEX]}"
+
+# ----------------------------------------
+# 📄 Determine template file source
+# ----------------------------------------
+
+TEMPLATE_FILE=""
+GLOBAL_TEMPLATE_FILE="$SCRIPT_DIR/../data/global-templates.yaml"
+LOCAL_TEMPLATE_FILE="$BLOG_ROOT/data/templates.yaml"
+
+if yq eval ".\"$POST_TYPE\"" "$LOCAL_TEMPLATE_FILE" &>/dev/null; then
+  TEMPLATE_FILE="$LOCAL_TEMPLATE_FILE"
+elif yq eval ".\"$POST_TYPE\"" "$GLOBAL_TEMPLATE_FILE" &>/dev/null; then
+  TEMPLATE_FILE="$GLOBAL_TEMPLATE_FILE"
+else
+  fatal "Template '$POST_TYPE' not found in either template file."
+fi
 
 # ----------------------------------------
 # 🛠 Build front matter + placeholder anchors
@@ -130,7 +144,15 @@ FRONT_MATTER=$(yq eval --from-file "$YQ_EXPR_FILE" "$TEMPLATE_FILE") || {
 
 rm -f "$YQ_EXPR_FILE" "$TEMPLATE_EXPR_FILE"
 
-STRUCTURE_REFS=( $(yq eval ".${POST_TYPE}.structure[].ref" "$TEMPLATE_FILE") )
+if yq eval ".${POST_TYPE}.structure" "$TEMPLATE_FILE" &>/dev/null; then
+  STRUCTURE_REFS=( $(yq eval ".${POST_TYPE}.structure[].ref" "$TEMPLATE_FILE" 2>/dev/null) )
+else
+  STRUCTURE_REFS=()
+fi
+
+if [[ ${#STRUCTURE_REFS[@]} -eq 0 ]]; then
+  echo "ℹ️  No structure refs found — skipping anchor injection."
+fi
 
 {
   echo "---"

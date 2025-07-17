@@ -161,3 +161,35 @@ update_lastmod_field() {
 
   yq -i ".lastmod = \"$now\"" "$file"
 }
+
+# ---------------------------------------------------------
+# 📚 Load available post templates (global + local)
+# ---------------------------------------------------------
+load_available_templates() {
+  local global_template_file="$SCRIPT_DIR/../data/global-templates.yaml"
+  local local_template_file="$BLOG_ROOT/data/templates.yaml"
+  local -n result_ref="$1"  # return array by reference
+
+  result_ref=()
+
+  local found_any=0
+
+  if [[ -f "$global_template_file" ]]; then
+    mapfile -t global_templates < <(yq eval 'keys | .[]' "$global_template_file")
+    result_ref+=("${global_templates[@]}")
+    found_any=1
+  fi
+
+  if [[ -f "$local_template_file" ]]; then
+    mapfile -t local_templates < <(yq eval 'keys | .[]' "$local_template_file")
+    result_ref+=("${local_templates[@]}")
+    found_any=1
+  fi
+
+  if [[ "$found_any" -eq 0 ]]; then
+    fatal "No template files found. Expected at least one of:
+  - $global_template_file
+  - $local_template_file"
+  fi
+}
+
